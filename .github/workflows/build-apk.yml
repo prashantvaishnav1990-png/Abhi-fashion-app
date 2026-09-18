@@ -1,0 +1,39 @@
+name: Build ABHI FASHION APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & Package APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Upload Production Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: abhi-fashion-build
+          path: dist/
+          retention-days: 30
