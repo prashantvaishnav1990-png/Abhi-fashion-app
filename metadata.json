@@ -1,0 +1,6 @@
+{
+  "name": "ABHI FASHION",
+  "description": "Official mobile-first online men's clothing store for ABHI FASHION, Bazar Line, Chhuikhadan. Shop shirts, t-shirts, jeans, trousers, jackets, footwear and accessories with easy payment & EMI options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

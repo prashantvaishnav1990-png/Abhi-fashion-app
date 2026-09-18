@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Filter benign Vite HMR websocket connection messages in AI Studio iframe
+      (function() {
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          var OrigWebSocket = window.WebSocket;
+          var SafeWebSocket = function(url, protocols) {
+            var isViteHmr = false;
+            if (protocols === 'vite-hmr' || (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1)) {
+              isViteHmr = true;
+            }
+            if (typeof url === 'string' && (url.indexOf('vite') !== -1 || url.indexOf('token=') !== -1)) {
+              isViteHmr = true;
+            }
+            if (isViteHmr) {
+              return {
+                readyState: 3,
+                close: function() {},
+                send: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                dispatchEvent: function() { return false; },
+              };
+            }
+            return new OrigWebSocket(url, protocols);
+          };
+          SafeWebSocket.prototype = OrigWebSocket.prototype;
+          SafeWebSocket.CONNECTING = 0;
+          SafeWebSocket.OPEN = 1;
+          SafeWebSocket.CLOSING = 2;
+          SafeWebSocket.CLOSED = 3;
+          window.WebSocket = SafeWebSocket;
+        }
+
+        function isViteHmrMessage(args) {
+          for (var i = 0; i < args.length; i++) {
+            var val = args[i];
+            var str = typeof val === 'string' ? val : (val && val.message ? val.message : String(val));
+            if (str && (str.indexOf('[vite]') !== -1 || str.indexOf('failed to connect to websocket') !== -1 || str.indexOf('WebSocket') !== -1)) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        ['error', 'warn', 'log', 'info', 'debug'].forEach(function(method) {
+          var orig = console[method];
+          if (typeof orig === 'function') {
+            console[method] = function() {
+              if (isViteHmrMessage(arguments)) return;
+              orig.apply(console, arguments);
+            };
+          }
+        });
+
+        window.addEventListener('error', function(e) {
+          if (e && e.message && (e.message.indexOf('[vite]') !== -1 || e.message.indexOf('websocket') !== -1)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ABHI FASHION - Men's Clothing Store | Chhuikhadan</title>
+    <meta name="description" content="Official mobile-first online men's clothing store for ABHI FASHION, Bazar Line, Chhuikhadan. Shop shirts, t-shirts, jeans, trousers, jackets, footwear and accessories with easy payment & EMI options." />
+    <meta property="og:title" content="ABHI FASHION - Men's Clothing Store" />
+    <meta property="og:description" content="Official mobile-first online men's clothing store for ABHI FASHION, Bazar Line, Chhuikhadan. Shop shirts, t-shirts, jeans, trousers, jackets, footwear and accessories with easy payment & EMI options." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0B132B" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ABHI FASHION" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Cinzel:wght@700;900&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0A0F1D] text-slate-100 antialiased selection:bg-amber-500 selection:text-black min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
