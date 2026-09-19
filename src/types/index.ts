@@ -55,6 +55,7 @@ export interface CustomerAddress {
   city: string;
   state: string;
   pincode: string;
+  upiId?: string;
 }
 
 export interface OrderItem {

@@ -41,6 +41,8 @@ import {
   Maximize2,
   X,
   CreditCard,
+  Copy,
+  MessageCircle,
 } from 'lucide-react';
 import {
   Banner,
@@ -135,6 +137,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [copiedUpiOrderId, setCopiedUpiOrderId] = useState<string | null>(null);
 
   // Load push status & notification config on mount or tab change
   const refreshNotificationData = async () => {
@@ -942,6 +945,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </select>
                     </div>
                   </div>
+
+                  {/* Collect App UPI Mandate Box */}
+                  {(o.emiDetails || o.customer.upiId || o.paymentMethod === 'emi' || o.paymentMethod === 'upi_mandate') && (
+                    <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-emerald-300">
+                              Collect App UPI Mandate (EMI): {o.emiDetails?.tenure || '3 Months'} • ₹{o.emiDetails?.monthlyInstallment || Math.round(o.totalAmount / 3)}/mo
+                            </span>
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
+                              Active
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-slate-400 text-[11px]">Customer UPI ID (VPA):</span>
+                            <span className="font-mono font-black text-amber-300 text-xs bg-slate-950 px-2 py-0.5 rounded border border-slate-800 select-all">
+                              {o.emiDetails?.mandateUpiId || o.customer.upiId || 'Not specified'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {(o.emiDetails?.mandateUpiId || o.customer.upiId) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const upi = o.emiDetails?.mandateUpiId || o.customer.upiId || '';
+                              navigator.clipboard.writeText(upi);
+                              setCopiedUpiOrderId(o.id);
+                              setTimeout(() => setCopiedUpiOrderId(null), 2500);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                          >
+                            {copiedUpiOrderId === o.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy UPI ID</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        <a
+                          href={`https://wa.me/91${o.customer.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(
+                            `Namaste ${o.customer.name}! ABHI FASHION se aapke order #${o.orderNumber} (₹${o.totalAmount}) ke EMI ke liye Collect App AutoPay Mandate request aapke UPI ID (${o.emiDetails?.mandateUpiId || o.customer.upiId}) par bhej di gayi hai. Kripya apne Google Pay/PhonePe/Paytm par use approve karein.`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 text-xs font-bold flex items-center gap-1.5 border border-emerald-500/30 transition cursor-pointer"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Mandate WA</span>
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Items summary */}
                   <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-2 text-[11px]">

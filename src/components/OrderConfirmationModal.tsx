@@ -235,6 +235,21 @@ Please confirm delivery timeline!`;
                 <span className="font-black text-sm text-amber-400">₹{order.totalAmount}</span>
               </div>
             </div>
+
+            {(order.emiDetails || order.customer.upiId) && (
+              <div className="col-span-2 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-[11px] text-emerald-200">
+                <div className="flex items-center justify-between font-bold text-emerald-300 mb-1">
+                  <span>⚡ Collect App UPI Mandate (EMI):</span>
+                  <span className="text-amber-300 font-mono">₹{order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo</span>
+                </div>
+                <p className="text-slate-300">
+                  Customer UPI ID: <span className="font-mono font-bold text-amber-300">{order.emiDetails?.mandateUpiId || order.customer.upiId}</span>
+                </p>
+                <p className="text-slate-400 text-[10px] mt-0.5">
+                  ABHI FASHION Collect App se aapke is UPI ID par auto-debit mandate bhejegi jise PhonePe / GPay / Paytm par approve karna hoga.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

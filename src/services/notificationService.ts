@@ -321,12 +321,23 @@ export const NotificationService = {
       )
       .join('\n');
 
+    const isEmi = order.paymentMethod === 'emi' || order.paymentMethod === 'upi_mandate' || !!order.emiDetails;
+    const upiId = order.emiDetails?.mandateUpiId || order.customer.upiId;
+
+    const emiBlock = isEmi
+      ? `\n⚡ *EMI / COLLECT APP MANDATE:*
+• *Customer UPI ID:* \`${upiId || 'Provided at checkout'}\` 👈
+• *Tenure:* ${order.emiDetails?.tenure || '3 Months'}
+• *Monthly EMI:* ₹${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/month
+• *Next Step:* Collect App me Mandate bhejein.`
+      : '';
+
     const msg = `🛍️ *NEW ORDER - ${storeName}*
 ---------------------------------------
 *Order ID:* ${order.orderNumber}
 *Customer:* ${order.customer.name}
 *Mobile:* +91 ${order.customer.mobile}
-*Address:* ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}
+*Address:* ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}${emiBlock}
 
 *Items:*
 ${itemLines}
@@ -343,7 +354,11 @@ Aapka order confirm karne ke liye ye message bheja gaya hai.`;
   // Generate 1-tap direct SMS link
   formatSmsLink(order: Order, ownerNumber: string): string {
     const cleanPhone = ownerNumber.replace(/\D/g, '').slice(-10);
-    const body = `ABHI FASHION Order #${order.orderNumber} placed. Rs.${order.totalAmount} by ${order.customer.name} (+91${order.customer.mobile}), ${order.customer.city}. Total items: ${order.items.length}.`;
+    const isEmi = order.paymentMethod === 'emi' || order.paymentMethod === 'upi_mandate' || !!order.emiDetails;
+    const upiId = order.emiDetails?.mandateUpiId || order.customer.upiId;
+    const emiNote = isEmi && upiId ? ` [EMI UPI: ${upiId}]` : '';
+
+    const body = `ABHI FASHION Order #${order.orderNumber} placed. Rs.${order.totalAmount} by ${order.customer.name} (+91${order.customer.mobile})${emiNote}, ${order.customer.city}. Total items: ${order.items.length}.`;
     return `sms:+91${cleanPhone}?body=${encodeURIComponent(body)}`;
   },
 };

@@ -717,29 +717,46 @@ Kripya order confirm karke packing shuru karein!`;
     };
 
     try {
+      const isEmiOrder = newOrder.paymentMethod === 'emi' || newOrder.paymentMethod === 'upi_mandate' || !!newOrder.emiDetails;
+      const customerUpi = newOrder.emiDetails?.mandateUpiId || newOrder.customer?.upiId || '';
+
       if (cfg.enablePush) {
+        const pushBody = isEmiOrder && customerUpi
+          ? `Customer: ${newOrder.customer?.name}\n⚡ EMI Mandate UPI: ${customerUpi} (${newOrder.emiDetails?.tenure || '3 Months'})\nItems: ${itemsSummary}`
+          : `Customer: ${newOrder.customer?.name} (${newOrder.customer?.city || 'Chhuikhadan'})\nItems: ${itemsSummary}`;
+
         results.push = await sendWebPushNotification({
-          title: `🛍️ Naya Order: ${newOrder.orderNumber} (₹${newOrder.totalAmount})`,
-          body: `Customer: ${newOrder.customer?.name} (${newOrder.customer?.city || 'Chhuikhadan'})\nItems: ${itemsSummary}`,
+          title: `🛍️ Naya Order: ${newOrder.orderNumber} (₹${newOrder.totalAmount})${isEmiOrder ? ' [EMI]' : ''}`,
+          body: pushBody,
           url: '/admin?orderId=' + newOrder.id,
           orderId: newOrder.id,
         });
       }
 
       if (cfg.enableSms && cfg.ownerPhone) {
-        const smsText = `ABHI FASHION: Naya Order mila! #${newOrder.orderNumber}, Rs.${newOrder.totalAmount}, Customer: ${newOrder.customer?.name} (+91${newOrder.customer?.mobile}), ${newOrder.customer?.city}. Check Admin App now!`;
+        const upiSnippet = isEmiOrder && customerUpi ? ` [EMI UPI: ${customerUpi}]` : '';
+        const smsText = `ABHI FASHION: Naya Order mila! #${newOrder.orderNumber}, Rs.${newOrder.totalAmount}, Customer: ${newOrder.customer?.name} (+91${newOrder.customer?.mobile})${upiSnippet}, ${newOrder.customer?.city}. Check Admin App now!`;
         results.sms = await sendSmsNotification(cfg.ownerPhone, smsText, cfg);
       }
 
       if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
         const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
+        const emiSection = isEmiOrder
+          ? `\n⚡ *EMI / COLLECT APP MANDATE DETAILS:*
+• *Customer UPI ID:* \`${customerUpi || 'Not entered'}\`
+• *Tenure:* ${newOrder.emiDetails?.tenure || '3 Months'}
+• *Monthly Installment:* ₹${newOrder.emiDetails?.monthlyInstallment || Math.round(newOrder.totalAmount / 3)}/month
+• *Mandate Action:* Collect App open karein -> New Mandate -> Customer UPI ID (${customerUpi}) paste karke request bhejein!
+---------------------------------------`
+          : '';
+
         const waText = `🛍️ *NEW ORDER ALERT - ABHI FASHION*
 ---------------------------------------
 *Order ID:* ${newOrder.orderNumber}
 *Total:* ₹${newOrder.totalAmount} (${(newOrder.paymentMethod || '').toUpperCase()} - ${newOrder.paymentStatus})
 *Customer:* ${newOrder.customer?.name}
 *Mobile:* +91 ${newOrder.customer?.mobile}
-*Address:* ${newOrder.customer?.address}, ${newOrder.customer?.city}
+*Address:* ${newOrder.customer?.address}, ${newOrder.customer?.city}${emiSection}
 
 *Items:*
 ${(newOrder.items || [])

@@ -113,9 +113,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    if (selectedPayment === 'upi_mandate' && !upiId.trim()) {
-      setErrorMsg('Please enter your UPI ID (VPA) for the Collect App mandate authorization.');
-      return;
+    if (selectedPayment === 'upi_mandate' || selectedPayment === 'emi') {
+      const trimmedUpi = upiId.trim();
+      if (!trimmedUpi) {
+        setErrorMsg('Apna UPI ID (VPA) darj karein taaki dukan (ABHI FASHION) aapko Collect App se Mandate bhej sake (e.g. 9826198421@paytm)');
+        return;
+      }
+      if (!trimmedUpi.includes('@') || trimmedUpi.startsWith('@') || trimmedUpi.endsWith('@')) {
+        setErrorMsg('Kripya valid UPI ID darj karein jisme "@" ho (jaise 9826198421@paytm ya yourname@okhdfcbank)');
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -133,25 +140,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         totalPrice: i.product.sellingPrice * i.quantity,
       }));
 
-      const emiDetails =
-        selectedPayment === 'upi_mandate'
-          ? {
-              tenure: `${selectedEmiTenure} Months (Max 3 Months)`,
-              monthlyInstallment: selectedEmiTenure === '3' ? emi3Month : emi2Month,
-              providerNote: `Collect App / UPI AutoPay Mandate created for ${upiId.trim() || cleanMobile + '@upi'} (${settings.upiMandateProvider || 'Collect App'})`,
-            }
-          : selectedPayment === 'emi'
-          ? {
-              tenure: `${selectedEmiTenure} Months (Max 3 Months)`,
-              monthlyInstallment: selectedEmiTenure === '3' ? emi3Month : emi2Month,
-              providerNote: 'Configurable BNPL/EMI integration partner (Max 3 Months)',
-            }
-          : undefined;
+      const isEmi = selectedPayment === 'upi_mandate' || selectedPayment === 'emi';
+      const cleanUpi = upiId.trim();
+
+      const emiDetails = isEmi
+        ? {
+            tenure: `${selectedEmiTenure} Months (Max 3 Months)`,
+            monthlyInstallment: selectedEmiTenure === '3' ? emi3Month : emi2Month,
+            providerNote: `Collect App / UPI AutoPay Mandate to ${cleanUpi} (${settings.upiMandateProvider || 'Collect App / NPCI AutoPay'})`,
+            mandateUpiId: cleanUpi,
+            mandateType: 'Collect App' as const,
+            mandateStatus: 'Mandate Pending Dispatch',
+          }
+        : undefined;
 
       const createdOrder = onCreateOrder({
         customer: {
           ...formData,
           mobile: cleanMobile,
+          upiId: isEmi ? cleanUpi : (cleanUpi || undefined),
         },
         items: orderItems,
         subtotal,
@@ -441,7 +448,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
 
                     <p className="text-xs text-slate-300 mt-1">
-                      Split your payment into easy monthly installments (Maximum 3 Months).
+                      Split your payment into easy monthly installments (Maximum 3 Months) via Collect App UPI Mandate.
                     </p>
 
                     {!isEmiEligible && (
@@ -453,50 +460,93 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
                     )}
 
-                    {/* Accurate EMI disclosure notice as instructed by prompt */}
-                    <div className="mt-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-300 space-y-2">
-                      <div className="flex items-center justify-between text-amber-400 font-semibold">
-                        <div className="flex items-center gap-1.5">
-                          <Info className="w-3.5 h-3.5 shrink-0" />
-                          <span>Choose Installment Tenure:</span>
+                    {/* Accurate EMI disclosure & UPI ID input */}
+                    {selectedPayment === 'emi' && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-slate-950/90 border border-amber-400/30 text-xs text-slate-200 space-y-2.5 animate-in fade-in">
+                        <div className="flex items-center justify-between text-[11px] text-amber-400 font-semibold border-b border-slate-800 pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 shrink-0" />
+                            <span>Choose Installment Tenure:</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">Max 3 Months Limit</span>
                         </div>
-                        <span className="text-[10px] text-slate-400">Max 3 Months Limit</span>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEmiTenure('3')}
+                            className={`p-2 rounded-lg text-left border transition cursor-pointer ${
+                              selectedEmiTenure === '3'
+                                ? 'bg-amber-400/15 border-amber-400 text-white'
+                                : 'bg-slate-900 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            <div className="font-bold text-amber-300">3 Months (Max)</div>
+                            <div className="font-black text-white text-xs">₹{emi3Month}/mo</div>
+                            <div className="text-[9px] text-emerald-400">Recommended • 0% Interest</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEmiTenure('2')}
+                            className={`p-2 rounded-lg text-left border transition cursor-pointer ${
+                              selectedEmiTenure === '2'
+                                ? 'bg-amber-400/15 border-amber-400 text-white'
+                                : 'bg-slate-900 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            <div className="font-bold text-amber-300">2 Months</div>
+                            <div className="font-black text-white text-xs">₹{emi2Month}/mo</div>
+                            <div className="text-[9px] text-slate-400">Fast Payoff</div>
+                          </button>
+                        </div>
+
+                        {/* Customer UPI ID Input */}
+                        <div className="pt-1">
+                          <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                            Aapka UPI ID / VPA (Mandate bhejne ke liye) *
+                          </label>
+                          <input
+                            type="text"
+                            value={upiId}
+                            onChange={(e) => setUpiId(e.target.value)}
+                            placeholder="e.g. 9826198421@paytm ya rahul@okaxis"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400 text-xs font-mono"
+                          />
+
+                          {/* Quick Suffix Suggestions */}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                            <span className="text-[10px] text-slate-400">Quick suffix:</span>
+                            {['@paytm', '@ybl', '@okaxis', '@okhdfcbank', '@ibl'].map((suf) => (
+                              <button
+                                key={suf}
+                                type="button"
+                                onClick={() => {
+                                  const base = upiId.includes('@') ? upiId.split('@')[0] : (upiId || formData.mobile || '');
+                                  setUpiId(base + suf);
+                                }}
+                                className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] font-mono border border-slate-700 transition cursor-pointer"
+                              >
+                                {suf}
+                              </button>
+                            ))}
+                            {formData.mobile && formData.mobile.length >= 10 && (
+                              <button
+                                type="button"
+                                onClick={() => setUpiId(`${formData.mobile.replace(/\D/g, '')}@paytm`)}
+                                className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-[10px] font-bold border border-amber-400/40 transition cursor-pointer"
+                              >
+                                Auto: {formData.mobile.replace(/\D/g, '')}@paytm
+                              </button>
+                            )}
+                          </div>
+
+                          <p className="text-[10px] text-emerald-400/90 mt-2 bg-emerald-950/30 p-2 rounded-lg border border-emerald-500/20">
+                            ⚡ Dukan (ABHI FASHION) Collect App se aapke is UPI ID par mandate request bhejegi jise PhonePe / GPay / Paytm par approve karna hoga.
+                          </p>
+                        </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedEmiTenure('3')}
-                          className={`p-2 rounded-lg text-left border transition cursor-pointer ${
-                            selectedEmiTenure === '3'
-                              ? 'bg-amber-400/15 border-amber-400 text-white'
-                              : 'bg-slate-900 border-slate-700 text-slate-400'
-                          }`}
-                        >
-                          <div className="font-bold text-amber-300">3 Months (Max)</div>
-                          <div className="font-black text-white text-xs">₹{emi3Month}/mo</div>
-                          <div className="text-[9px] text-emerald-400">Recommended • 0% Interest</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedEmiTenure('2')}
-                          className={`p-2 rounded-lg text-left border transition cursor-pointer ${
-                            selectedEmiTenure === '2'
-                              ? 'bg-amber-400/15 border-amber-400 text-white'
-                              : 'bg-slate-900 border-slate-700 text-slate-400'
-                          }`}
-                        >
-                          <div className="font-bold text-amber-300">2 Months</div>
-                          <div className="font-black text-white text-xs">₹{emi2Month}/mo</div>
-                          <div className="text-[9px] text-slate-400">Fast Payoff</div>
-                        </button>
-                      </div>
-
-                      <p className="text-[10px] text-slate-400 leading-tight">
-                        * Note: Minimum order amount ₹3,000. Maximum allowed tenure is 3 months.
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </label>
               )}
@@ -584,17 +634,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       {/* UPI ID input for mandate */}
                       <div className="pt-1">
                         <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                          UPI ID / VPA for Mandate Notification *
+                          Aapka UPI ID / VPA (Mandate bhejne ke liye) *
                         </label>
                         <input
                           type="text"
                           value={upiId}
                           onChange={(e) => setUpiId(e.target.value)}
-                          placeholder="e.g. 9876543210@paytm or yourname@okhdfcbank"
+                          placeholder="e.g. 9826198421@paytm ya yourname@okhdfcbank"
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400 text-xs font-mono"
                         />
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          Collect App / NPCI UPI AutoPay se aapke UPI App par recurring mandate request aayegi jise pin daal kar authorize karna hoga.
+
+                        {/* Quick Suffix Suggestions */}
+                        <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                          <span className="text-[10px] text-slate-400">Quick suffix:</span>
+                          {['@paytm', '@ybl', '@okaxis', '@okhdfcbank', '@ibl'].map((suf) => (
+                            <button
+                              key={suf}
+                              type="button"
+                              onClick={() => {
+                                const base = upiId.includes('@') ? upiId.split('@')[0] : (upiId || formData.mobile || '');
+                                setUpiId(base + suf);
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] font-mono border border-slate-700 transition cursor-pointer"
+                            >
+                              {suf}
+                            </button>
+                          ))}
+                          {formData.mobile && formData.mobile.length >= 10 && (
+                            <button
+                              type="button"
+                              onClick={() => setUpiId(`${formData.mobile.replace(/\D/g, '')}@paytm`)}
+                              className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-[10px] font-bold border border-amber-400/40 transition cursor-pointer"
+                            >
+                              Auto: {formData.mobile.replace(/\D/g, '')}@paytm
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-emerald-400/90 mt-2 bg-emerald-950/30 p-2 rounded-lg border border-emerald-500/20">
+                          ⚡ Dukan (ABHI FASHION) Collect App se aapke is UPI ID par mandate request bhejegi jise PhonePe / GPay / Paytm par approve karna hoga.
                         </p>
                       </div>
                     </div>

@@ -51,6 +51,7 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
   });
   const [incomingOrder, setIncomingOrder] = useState<Order | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [pushStatus, setPushStatus] = useState<{ supported: boolean; isSubscribed: boolean; permission: string } | null>(null);
@@ -367,9 +368,58 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
                   {incomingOrder.customer.address}, {incomingOrder.customer.city}
                 </span>
               </div>
-              {incomingOrder.emiDetails && (
-                <div className="bg-amber-400/10 border border-amber-400/30 p-2 rounded-xl text-amber-300 text-[11px] font-semibold">
-                  ⚡ UPI Mandate / EMI: {incomingOrder.emiDetails.tenure} • ₹{incomingOrder.emiDetails.monthlyInstallment}/mo ({incomingOrder.emiDetails.providerNote})
+              {(incomingOrder.emiDetails || incomingOrder.customer.upiId) && (
+                <div className="bg-emerald-950/40 border border-emerald-500/40 p-3 rounded-2xl text-emerald-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-300 flex items-center gap-1.5 text-xs">
+                      <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                      Collect App UPI Mandate (EMI)
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black border border-emerald-500/30">
+                      {incomingOrder.emiDetails?.tenure || '3 Months'}
+                    </span>
+                  </div>
+
+                  {/* Customer UPI Address Row */}
+                  <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-400 block">Customer UPI ID (Mandate VPA):</span>
+                      <span className="font-mono font-black text-amber-300 text-xs truncate block select-all">
+                        {incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId || 'Not specified'}
+                      </span>
+                    </div>
+
+                    {(incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const id = incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId || '';
+                          navigator.clipboard.writeText(id);
+                          setCopiedUpi(true);
+                          setTimeout(() => setCopiedUpi(false), 2500);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 ${
+                          copiedUpi
+                            ? 'bg-emerald-500 text-slate-950'
+                            : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                        }`}
+                      >
+                        {copiedUpi ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedUpi ? 'Copied!' : 'Copy UPI'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-emerald-900/40">
+                    <span>Monthly Installment:</span>
+                    <span className="font-black text-white">
+                      ₹{incomingOrder.emiDetails?.monthlyInstallment || Math.round(incomingOrder.totalAmount / 3)}/month
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-emerald-400/90 leading-tight">
+                    👉 <strong>Step:</strong> Apna Collect App open karein, Customer ka UPI ID paste karke ₹{incomingOrder.emiDetails?.monthlyInstallment || Math.round(incomingOrder.totalAmount / 3)}/mo ka AutoPay mandate bhejein.
+                  </p>
                 </div>
               )}
             </div>
