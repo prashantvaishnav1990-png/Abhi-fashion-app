@@ -2,65 +2,23 @@
 <html lang="en">
   <head>
     <script>
-      // Filter benign Vite HMR websocket connection messages in AI Studio iframe
+      // Filter benign Vite websocket disconnection logs when HMR is disabled
       (function() {
-        if (typeof window !== 'undefined' && window.WebSocket) {
-          var OrigWebSocket = window.WebSocket;
-          var SafeWebSocket = function(url, protocols) {
-            var isViteHmr = false;
-            if (protocols === 'vite-hmr' || (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1)) {
-              isViteHmr = true;
-            }
-            if (typeof url === 'string' && (url.indexOf('vite') !== -1 || url.indexOf('token=') !== -1)) {
-              isViteHmr = true;
-            }
-            if (isViteHmr) {
-              return {
-                readyState: 3,
-                close: function() {},
-                send: function() {},
-                addEventListener: function() {},
-                removeEventListener: function() {},
-                dispatchEvent: function() { return false; },
-              };
-            }
-            return new OrigWebSocket(url, protocols);
-          };
-          SafeWebSocket.prototype = OrigWebSocket.prototype;
-          SafeWebSocket.CONNECTING = 0;
-          SafeWebSocket.OPEN = 1;
-          SafeWebSocket.CLOSING = 2;
-          SafeWebSocket.CLOSED = 3;
-          window.WebSocket = SafeWebSocket;
-        }
-
-        function isViteHmrMessage(args) {
-          for (var i = 0; i < args.length; i++) {
-            var val = args[i];
-            var str = typeof val === 'string' ? val : (val && val.message ? val.message : String(val));
-            if (str && (str.indexOf('[vite]') !== -1 || str.indexOf('failed to connect to websocket') !== -1 || str.indexOf('WebSocket') !== -1)) {
-              return true;
-            }
-          }
-          return false;
-        }
-
-        ['error', 'warn', 'log', 'info', 'debug'].forEach(function(method) {
-          var orig = console[method];
-          if (typeof orig === 'function') {
-            console[method] = function() {
-              if (isViteHmrMessage(arguments)) return;
-              orig.apply(console, arguments);
-            };
-          }
-        });
-
-        window.addEventListener('error', function(e) {
-          if (e && e.message && (e.message.indexOf('[vite]') !== -1 || e.message.indexOf('websocket') !== -1)) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-          }
-        }, true);
+        var filter = function(args) {
+          if (!args || !args[0]) return false;
+          var str = typeof args[0] === 'string' ? args[0] : (args[0].message || '');
+          return str.indexOf('[vite] failed to connect') !== -1 || str.indexOf('[vite] connecting...') !== -1;
+        };
+        var origError = console.error;
+        console.error = function() {
+          if (filter(arguments)) return;
+          return origError.apply(console, arguments);
+        };
+        var origWarn = console.warn;
+        console.warn = function() {
+          if (filter(arguments)) return;
+          return origWarn.apply(console, arguments);
+        };
       })();
     </script>
     <meta charset="UTF-8" />

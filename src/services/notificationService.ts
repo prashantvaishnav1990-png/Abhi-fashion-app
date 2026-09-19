@@ -74,6 +74,9 @@ export interface NotificationStatus {
 }
 
 export const NotificationService = {
+  // Play chime sound
+  playOrderAlertSound,
+
   // Check browser push status
   async getStatus(): Promise<NotificationStatus> {
     const supported =

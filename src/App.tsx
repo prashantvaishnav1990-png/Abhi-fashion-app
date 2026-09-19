@@ -39,11 +39,56 @@ import { OrderConfirmationModal } from './components/OrderConfirmationModal';
 import { OrdersView } from './components/OrdersView';
 import { SearchModal } from './components/SearchModal';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminApp } from './components/AdminApp';
 import { WhatsAppFloatingButton } from './components/WhatsAppFloatingButton';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
+  // App Mode State: 'customer' (Client Storefront) vs 'admin' (Store Owner App)
+  const [appMode, setAppMode] = useState<'customer' | 'admin'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      if (
+        path.startsWith('/admin') ||
+        params.get('app') === 'admin' ||
+        params.get('tab') === 'admin'
+      ) {
+        return 'admin';
+      }
+    }
+    return 'customer';
+  });
+
+  const handleSwitchMode = (mode: 'customer' | 'admin') => {
+    setAppMode(mode);
+    if (typeof window !== 'undefined') {
+      const newPath = mode === 'admin' ? '/admin' : '/';
+      window.history.pushState({}, '', newPath);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      if (
+        path.startsWith('/admin') ||
+        params.get('app') === 'admin' ||
+        params.get('tab') === 'admin'
+      ) {
+        setAppMode('admin');
+      } else {
+        setAppMode('customer');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Store dynamic data state
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,10 +96,8 @@ export default function App() {
   const [settings, setSettings] = useState<StoreSettings>(StoreService.getSettings());
   const [orders, setOrders] = useState<Order[]>([]);
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<
-    'home' | 'categories' | 'cart' | 'orders' | 'admin'
-  >('home');
+  // Customer Navigation State (No Admin tab in customer navigation!)
+  const [activeTab, setActiveTab] = useState<'home' | 'categories' | 'cart' | 'orders'>('home');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
 
   // Cart State (Persisted in localStorage)
@@ -175,8 +218,78 @@ export default function App() {
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  // -------------------------------------------------------------
+  // DEDICATED ADMIN APP MODE (For Store Owner / Order Notifications)
+  // -------------------------------------------------------------
+  if (appMode === 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        {/* Top App Switcher Bar */}
+        <div className="bg-slate-900 border-b border-slate-800/90 py-1.5 px-3 sm:px-4 flex items-center justify-between text-xs sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">
+              Active App:
+            </span>
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-800">
+              <button
+                onClick={() => handleSwitchMode('customer')}
+                className="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                🛍️ Customer App (ग्राहक)
+              </button>
+              <button className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 text-slate-950 shadow-xs cursor-default">
+                🛡️ Admin App (दुकानदार)
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleSwitchMode('customer')}
+            className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <span>Open Customer Storefront</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <AdminApp onSwitchToCustomerApp={() => handleSwitchMode('customer')} />
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DEDICATED CUSTOMER APP MODE (For Shoppers & Buyers)
+  // -------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#0A0F1D] text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950 pb-20 md:pb-0">
+      {/* Top App Mode Switcher Banner */}
+      <div className="bg-slate-900/95 border-b border-slate-800/90 py-1.5 px-3 sm:px-4 flex items-center justify-between text-xs backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">
+            Active App:
+          </span>
+          <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-800">
+            <button className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 text-slate-950 shadow-xs cursor-default">
+              🛍️ Customer App (ग्राहक)
+            </button>
+            <button
+              onClick={() => handleSwitchMode('admin')}
+              className="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              🛡️ Admin App (दुकानदार)
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={() => handleSwitchMode('admin')}
+          className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+        >
+          <span>Store Owner? Open Admin App</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* PWA In-App Install Prompt Banner */}
       <PWAInstallBanner />
 
@@ -194,7 +307,8 @@ export default function App() {
           setSelectedCategory('all');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenAdmin={() => setActiveTab('admin')}
+        onOpenAdmin={() => handleSwitchMode('admin')}
+        showAdminButton={false}
         activeView={activeTab}
       />
 
@@ -463,29 +577,6 @@ export default function App() {
             onContinueShopping={() => setActiveTab('home')}
           />
         )}
-
-        {/* VIEW 5: ADMIN PANEL */}
-        {activeTab === 'admin' && (
-          <AdminPanel
-            products={products}
-            categories={categories}
-            banners={banners}
-            orders={orders}
-            settings={settings}
-            onSaveProduct={(p) => StoreService.saveProduct(p)}
-            onDeleteProduct={(id) => StoreService.deleteProduct(id)}
-            onSaveCategory={(c) => StoreService.saveCategory(c)}
-            onDeleteCategory={(id) => StoreService.deleteCategory(id)}
-            onUpdateOrderStatus={(orderId, status) =>
-              StoreService.updateOrderStatus(orderId, status)
-            }
-            onSaveBanner={(b) => StoreService.saveBanner(b)}
-            onDeleteBanner={(id) => StoreService.deleteBanner(id)}
-            onSaveSettings={(s) => StoreService.saveSettings(s)}
-            onResetDatabase={() => StoreService.resetDatabase()}
-            onCloseAdmin={() => setActiveTab('home')}
-          />
-        )}
       </main>
 
       {/* Footer */}
@@ -579,13 +670,10 @@ export default function App() {
 
               <div>
                 <button
-                  onClick={() => {
-                    setActiveTab('admin');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="text-slate-500 hover:text-slate-300 text-[11px] underline block mt-2"
+                  onClick={() => handleSwitchMode('admin')}
+                  className="text-amber-400/80 hover:text-amber-300 text-xs font-semibold underline block mt-2 cursor-pointer"
                 >
-                  Store Owner / Admin Login
+                  🔒 Store Owner / Admin App Login ↗
                 </button>
               </div>
             </div>

@@ -28,7 +28,12 @@ const STORAGE_KEYS = {
 
 // Listeners for reactivity across components
 type StorageListener = () => void;
+type NewOrderListener = (order: Order) => void;
 const listeners: Set<StorageListener> = new Set();
+const newOrderListeners: Set<NewOrderListener> = new Set();
+
+let isInitialOrderLoadDone = false;
+const knownOrderIds: Set<string> = new Set();
 
 function notifyListeners() {
   listeners.forEach((listener) => {
@@ -45,6 +50,87 @@ export function subscribeToStore(listener: StorageListener): () => void {
   return () => {
     listeners.delete(listener);
   };
+}
+
+export function subscribeToNewOrders(listener: NewOrderListener): () => void {
+  newOrderListeners.add(listener);
+  return () => {
+    newOrderListeners.delete(listener);
+  };
+}
+
+// Background Server Sync
+async function syncOrdersFromServer() {
+  try {
+    const res = await fetch('/api/orders');
+    if (!res.ok) return;
+    const data = await res.json();
+    const serverOrders: Order[] = data.orders || [];
+
+    if (!isInitialOrderLoadDone) {
+      serverOrders.forEach((o) => knownOrderIds.add(o.id));
+      const local = StoreService.getOrders();
+      local.forEach((o) => knownOrderIds.add(o.id));
+      isInitialOrderLoadDone = true;
+
+      // Merge server + local
+      const mergedMap = new Map<string, Order>();
+      local.forEach((o) => mergedMap.set(o.id, o));
+      serverOrders.forEach((o) => mergedMap.set(o.id, o));
+      const merged = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
+      notifyListeners();
+      return;
+    }
+
+    // Subsequent polls: check if brand new order has arrived
+    const newlyArrived: Order[] = [];
+    serverOrders.forEach((o) => {
+      if (!knownOrderIds.has(o.id)) {
+        knownOrderIds.add(o.id);
+        newlyArrived.push(o);
+      }
+    });
+
+    if (newlyArrived.length > 0) {
+      // Merge into local storage
+      const local = StoreService.getOrders();
+      const mergedMap = new Map<string, Order>();
+      local.forEach((o) => mergedMap.set(o.id, o));
+      serverOrders.forEach((o) => mergedMap.set(o.id, o));
+      const merged = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
+      notifyListeners();
+
+      // Trigger alerts
+      newlyArrived.forEach((order) => {
+        try {
+          NotificationService.playOrderAlertSound();
+        } catch {}
+        newOrderListeners.forEach((cb) => {
+          try {
+            cb(order);
+          } catch (e) {
+            console.error('New order listener error:', e);
+          }
+        });
+      });
+    }
+  } catch (err) {
+    // Quiet fail on network hiccups
+  }
+}
+
+// Start polling in browser
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    syncOrdersFromServer();
+    setInterval(syncOrdersFromServer, 3500);
+  }, 1000);
 }
 
 export const StoreService = {
@@ -271,7 +357,15 @@ export const StoreService = {
 
     // Save order
     orders.unshift(newOrder);
+    knownOrderIds.add(newOrder.id);
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+
+    // Save to server database
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder),
+    }).catch((err) => console.warn('Server order sync error:', err));
 
     // Dispatch background Push, SMS, and WhatsApp alerts to store owner
     try {
@@ -291,6 +385,13 @@ export const StoreService = {
 
     const previousStatus = orders[orderIndex].orderStatus;
     orders[orderIndex].orderStatus = newStatus;
+
+    // Sync to server API
+    fetch(`/api/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    }).catch((err) => console.warn('Server status sync error:', err));
 
     // Inventory handling:
     // If order was cancelled and wasn't previously cancelled, restore stock
@@ -346,5 +447,9 @@ export const StoreService = {
 
   logoutAdmin(): void {
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+  },
+
+  async syncWithServerNow(): Promise<void> {
+    await syncOrdersFromServer();
   },
 };

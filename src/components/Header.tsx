@@ -8,7 +8,8 @@ interface HeaderProps {
   onOpenCart: () => void;
   onOpenSearch: () => void;
   onNavigateHome: () => void;
-  onOpenAdmin: () => void;
+  onOpenAdmin?: () => void;
+  showAdminButton?: boolean;
   activeView: string;
 }
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onNavigateHome,
   onOpenAdmin,
+  showAdminButton = false,
   activeView,
 }) => {
   return (
@@ -64,21 +66,23 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden md:inline text-slate-300">Search shirts, jeans...</span>
           </button>
 
-          {/* Admin Mode Shortcut */}
-          <button
-            id="header-admin-btn"
-            onClick={onOpenAdmin}
-            title="Admin Dashboard"
-            aria-label="Admin Dashboard"
-            className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
-              activeView === 'admin'
-                ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
-            }`}
-          >
-            <Shield className="w-4 h-4 text-amber-400" />
-            <span className="hidden sm:inline">Admin</span>
-          </button>
+          {/* Admin Mode Shortcut (only if enabled) */}
+          {showAdminButton && onOpenAdmin && (
+            <button
+              id="header-admin-btn"
+              onClick={onOpenAdmin}
+              title="Open Admin Store Manager"
+              aria-label="Admin Dashboard"
+              className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+                activeView === 'admin'
+                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+              }`}
+            >
+              <Shield className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">Admin App</span>
+            </button>
+          )}
 
           {/* Cart Button */}
           <button

@@ -644,6 +644,211 @@ Kripya order confirm karke packing shuru karein!`;
     });
   });
 
+  // -------------------------------------------------------------
+  // CENTRAL STORE DATABASE & ORDERS (Server-wide persistence)
+  // -------------------------------------------------------------
+  const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+  const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+  const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+  const CATEGORIES_FILE = path.join(DATA_DIR, 'categories.json');
+  const BANNERS_FILE = path.join(DATA_DIR, 'banners.json');
+
+  function readJsonFile<T>(filePath: string, fallback: T): T {
+    if (!fs.existsSync(filePath)) return fallback;
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeJsonFile(filePath: string, data: any) {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    } catch (err) {
+      console.error(`Failed to write ${filePath}:`, err);
+    }
+  }
+
+  // 1. ORDERS API
+  app.get('/api/orders', (req, res) => {
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    res.json({ orders });
+  });
+
+  app.post('/api/orders', async (req, res) => {
+    const newOrder = req.body;
+    if (!newOrder || !newOrder.id) {
+      res.status(400).json({ error: 'Invalid order payload' });
+      return;
+    }
+
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    const existingIndex = orders.findIndex((o) => o.id === newOrder.id);
+    if (existingIndex >= 0) {
+      orders[existingIndex] = newOrder;
+    } else {
+      orders.unshift(newOrder);
+    }
+    writeJsonFile(ORDERS_FILE, orders);
+
+    // Also deduct stock from server products if available
+    const products = readJsonFile<any[]>(PRODUCTS_FILE, []);
+    if (products.length > 0 && Array.isArray(newOrder.items)) {
+      newOrder.items.forEach((it: any) => {
+        const prod = products.find((p) => p.id === it.productId);
+        if (prod) {
+          prod.stock = Math.max(0, (prod.stock || 0) - (it.quantity || 1));
+        }
+      });
+      writeJsonFile(PRODUCTS_FILE, products);
+    }
+
+    // Trigger Notifications (Push + SMS + WhatsApp)
+    const cfg = getNotificationConfig();
+    const itemsSummary = (newOrder.items || [])
+      .map((it: any) => `${it.productName} (${it.selectedSize}) x${it.quantity}`)
+      .join(', ');
+
+    const results: any = {
+      push: null,
+      sms: null,
+      whatsapp: null,
+    };
+
+    try {
+      if (cfg.enablePush) {
+        results.push = await sendWebPushNotification({
+          title: `🛍️ Naya Order: ${newOrder.orderNumber} (₹${newOrder.totalAmount})`,
+          body: `Customer: ${newOrder.customer?.name} (${newOrder.customer?.city || 'Chhuikhadan'})\nItems: ${itemsSummary}`,
+          url: '/admin?orderId=' + newOrder.id,
+          orderId: newOrder.id,
+        });
+      }
+
+      if (cfg.enableSms && cfg.ownerPhone) {
+        const smsText = `ABHI FASHION: Naya Order mila! #${newOrder.orderNumber}, Rs.${newOrder.totalAmount}, Customer: ${newOrder.customer?.name} (+91${newOrder.customer?.mobile}), ${newOrder.customer?.city}. Check Admin App now!`;
+        results.sms = await sendSmsNotification(cfg.ownerPhone, smsText, cfg);
+      }
+
+      if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
+        const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
+        const waText = `🛍️ *NEW ORDER ALERT - ABHI FASHION*
+---------------------------------------
+*Order ID:* ${newOrder.orderNumber}
+*Total:* ₹${newOrder.totalAmount} (${(newOrder.paymentMethod || '').toUpperCase()} - ${newOrder.paymentStatus})
+*Customer:* ${newOrder.customer?.name}
+*Mobile:* +91 ${newOrder.customer?.mobile}
+*Address:* ${newOrder.customer?.address}, ${newOrder.customer?.city}
+
+*Items:*
+${(newOrder.items || [])
+  .map(
+    (it: any, i: number) =>
+      `${i + 1}. *${it.productName}* (${it.selectedSize}) x${it.quantity} = ₹${it.totalPrice}`
+  )
+  .join('\n')}
+---------------------------------------
+Kripya Admin App open karke order check karein:
+http://localhost:3000/admin`;
+
+        results.whatsapp = await sendWhatsAppNotification(waPhone, waText, cfg);
+      }
+    } catch (e) {
+      console.warn('Notification broadcast error on order placement:', e);
+    }
+
+    res.json({ success: true, order: newOrder, results });
+  });
+
+  app.put('/api/orders/:id/status', (req, res) => {
+    const { id } = req.params;
+    const { status, paymentStatus } = req.body;
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    const order = orders.find((o) => o.id === id);
+    if (!order) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    if (status) order.orderStatus = status;
+    if (paymentStatus) order.paymentStatus = paymentStatus;
+    order.updatedAt = new Date().toISOString();
+    writeJsonFile(ORDERS_FILE, orders);
+    res.json({ success: true, order });
+  });
+
+  app.delete('/api/orders/:id', (req, res) => {
+    const { id } = req.params;
+    let orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    orders = orders.filter((o) => o.id !== id);
+    writeJsonFile(ORDERS_FILE, orders);
+    res.json({ success: true });
+  });
+
+  // 2. PRODUCTS API
+  app.get('/api/products', (req, res) => {
+    const products = readJsonFile<any[] | null>(PRODUCTS_FILE, null);
+    res.json({ products });
+  });
+
+  app.post('/api/products', (req, res) => {
+    const { products } = req.body;
+    if (Array.isArray(products)) {
+      writeJsonFile(PRODUCTS_FILE, products);
+      res.json({ success: true, total: products.length });
+    } else {
+      res.status(400).json({ error: 'Array of products required' });
+    }
+  });
+
+  // 3. SETTINGS API
+  app.get('/api/settings', (req, res) => {
+    const settings = readJsonFile<any | null>(SETTINGS_FILE, null);
+    res.json({ settings });
+  });
+
+  app.post('/api/settings', (req, res) => {
+    const { settings } = req.body;
+    if (settings && typeof settings === 'object') {
+      writeJsonFile(SETTINGS_FILE, settings);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Settings object required' });
+    }
+  });
+
+  // 4. CATEGORIES API
+  app.get('/api/categories', (req, res) => {
+    const categories = readJsonFile<any[] | null>(CATEGORIES_FILE, null);
+    res.json({ categories });
+  });
+
+  app.post('/api/categories', (req, res) => {
+    const { categories } = req.body;
+    if (Array.isArray(categories)) {
+      writeJsonFile(CATEGORIES_FILE, categories);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Array of categories required' });
+    }
+  });
+
+  // 5. BANNERS API
+  app.get('/api/banners', (req, res) => {
+    const banners = readJsonFile<any[] | null>(BANNERS_FILE, null);
+    res.json({ banners });
+  });
+
+  app.post('/api/banners', (req, res) => {
+    const { banners } = req.body;
+    if (Array.isArray(banners)) {
+      writeJsonFile(BANNERS_FILE, banners);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Array of banners required' });
+    }
+  });
+
   // Vite middleware setup
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
