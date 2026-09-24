@@ -48,15 +48,26 @@ export default function App() {
   // App Mode State: 'customer' (Client Storefront) vs 'admin' (Store Owner App)
   const [appMode, setAppMode] = useState<'customer' | 'admin'>(() => {
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      const params = new URLSearchParams(window.location.search);
-      if (
-        path.startsWith('/admin') ||
-        params.get('app') === 'admin' ||
-        params.get('tab') === 'admin'
-      ) {
+      if ((window as any).__APP_TARGET_MODE__ === 'admin') {
         return 'admin';
       }
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('app') === 'admin' || params.get('tab') === 'admin') {
+        return 'admin';
+      }
+      if (params.get('app') === 'customer') {
+        return 'customer';
+      }
+      const path = window.location.pathname;
+      if (path.startsWith('/admin')) {
+        return 'admin';
+      }
+      try {
+        const savedMode = localStorage.getItem('abhi_fashion_app_mode');
+        if (savedMode === 'admin' || savedMode === 'customer') {
+          return savedMode;
+        }
+      } catch {}
     }
     return 'customer';
   });
@@ -64,11 +75,38 @@ export default function App() {
   const handleSwitchMode = (mode: 'customer' | 'admin') => {
     setAppMode(mode);
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('abhi_fashion_app_mode', mode);
+      } catch {}
       const newPath = mode === 'admin' ? '/admin' : '/';
       window.history.pushState({}, '', newPath);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  // Detect whether running in dedicated Admin APK (com.abhifashion.admin) or Customer APK (com.abhifashion.store)
+  useEffect(() => {
+    (window as any).__onAppTargetMode = (mode: 'customer' | 'admin') => {
+      setAppMode(mode);
+    };
+
+    import('@capacitor/app')
+      .then(({ App: CapApp }) => {
+        CapApp.getInfo()
+          .then((info) => {
+            if (info?.id === 'com.abhifashion.admin') {
+              setAppMode('admin');
+            } else if (info?.id === 'com.abhifashion.store') {
+              const params = new URLSearchParams(window.location.search);
+              if (!params.get('app') && !window.location.pathname.startsWith('/admin')) {
+                setAppMode('customer');
+              }
+            }
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync with browser back/forward buttons
   useEffect(() => {

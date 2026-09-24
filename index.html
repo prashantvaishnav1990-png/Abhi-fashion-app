@@ -5,9 +5,19 @@
       // Filter benign Vite websocket disconnection logs when HMR is disabled
       (function() {
         var filter = function(args) {
-          if (!args || !args[0]) return false;
-          var str = typeof args[0] === 'string' ? args[0] : (args[0].message || '');
-          return str.indexOf('[vite] failed to connect') !== -1 || str.indexOf('[vite] connecting...') !== -1;
+          if (!args || !args.length) return false;
+          for (var i = 0; i < args.length; i++) {
+            var item = args[i];
+            var str = typeof item === 'string' ? item : (item && item.message ? item.message : '');
+            if (typeof str === 'string' && (
+              str.indexOf('[vite]') !== -1 ||
+              str.indexOf('WebSocket connection to') !== -1 ||
+              str.indexOf('failed to connect to websocket') !== -1
+            )) {
+              return true;
+            }
+          }
+          return false;
         };
         var origError = console.error;
         console.error = function() {

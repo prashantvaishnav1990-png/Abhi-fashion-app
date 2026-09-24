@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
-    name: Build & Package APK
+  build-apk:
+    name: Build & Package Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,6 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -30,9 +40,70 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Upload Production Build Artifact
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Android Debug APKs (Customer & Admin)
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare APK Files
+        run: |
+          mkdir -p output-apk
+          # Locate Customer APK
+          if [ -f "android/app/build/outputs/apk/customer/debug/app-customer-debug.apk" ]; then
+            cp android/app/build/outputs/apk/customer/debug/app-customer-debug.apk output-apk/AbhiFashion-Customer.apk
+          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk output-apk/AbhiFashion-Customer.apk
+          fi
+
+          # Locate Admin APK
+          if [ -f "android/app/build/outputs/apk/admin/debug/app-admin-debug.apk" ]; then
+            cp android/app/build/outputs/apk/admin/debug/app-admin-debug.apk output-apk/AbhiFashion-Admin.apk
+          fi
+
+          echo "=== Generated APK Files ==="
+          ls -la output-apk/
+
+      - name: Upload Customer APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: abhi-fashion-build
-          path: dist/
+          name: AbhiFashion-Customer-APK
+          path: output-apk/AbhiFashion-Customer.apk
           retention-days: 30
+
+      - name: Upload Admin APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AbhiFashion-Admin-APK
+          path: output-apk/AbhiFashion-Admin.apk
+          retention-days: 30
+
+      - name: Create GitHub Release with both APK downloads
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v1.0.${{ github.run_number }}
+          name: "ABHI FASHION APKs (Customer & Admin) - v1.0.${{ github.run_number }}"
+          body: |
+            ### 📱 ABHI FASHION - Android Apps
+
+            Download direct `.apk` files directly to your phone:
+
+            1. **🛍️ Customer Storefront App (ग्राहक ऐप):**
+               - **File:** `AbhiFashion-Customer.apk`
+               - **Use:** For customers to browse collection, categories, add to cart, choose COD or UPI Mandate EMI, and place orders.
+
+            2. **🛡️ Store Admin App (दुकानदार ऐप):**
+               - **File:** `AbhiFashion-Admin.apk`
+               - **Use:** For Abhishek / Shop Owner to receive instant sound alerts for new orders, view Customer UPI IDs for Collect App Mandates, manage inventory, and update order statuses.
+          files: |
+            output-apk/AbhiFashion-Customer.apk
+            output-apk/AbhiFashion-Admin.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

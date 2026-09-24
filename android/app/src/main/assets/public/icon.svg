@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B132B"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#070B14"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="crimson" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F43F5E"/>
+      <stop offset="100%" stop-color="#BE123C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Outer glowing accent border -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="url(#gold)" stroke-width="4" stroke-opacity="0.3"/>
+
+  <!-- Inner Crest Circle -->
+  <circle cx="256" cy="230" r="140" fill="#0E172A" stroke="url(#gold)" stroke-width="6"/>
+
+  <!-- Crown / Tie Motif -->
+  <path d="M 216 140 L 256 168 L 296 140 L 286 190 L 226 190 Z" fill="url(#gold)"/>
+  <circle cx="216" cy="136" r="6" fill="#FCD34D"/>
+  <circle cx="256" cy="164" r="7" fill="#FCD34D"/>
+  <circle cx="296" cy="136" r="6" fill="#FCD34D"/>
+
+  <!-- Monogram AF -->
+  <text x="256" y="278" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="104" fill="#FFFFFF" text-anchor="middle" letter-spacing="-2">
+    AF
+  </text>
+  
+  <!-- Ribbon Badge -->
+  <path d="M 166 320 L 346 320 L 330 355 L 256 345 L 182 355 Z" fill="url(#crimson)"/>
+  <text x="256" y="340" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="18" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">
+    ESTD • 2024
+  </text>
+
+  <!-- Bottom Brand Title -->
+  <text x="256" y="420" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="34" fill="#FFFFFF" text-anchor="middle" letter-spacing="6">
+    ABHI FASHION
+  </text>
+  <text x="256" y="450" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="16" fill="#F59E0B" text-anchor="middle" letter-spacing="4">
+    MEN'S WEAR • CHHUIKHADAN
+  </text>
+</svg>
