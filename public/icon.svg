@@ -1,52 +1,76 @@
+
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0B132B"/>
-      <stop offset="50%" stop-color="#111827"/>
-      <stop offset="100%" stop-color="#070B14"/>
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#0B132B"/>
+      <stop offset="100%" stop-color="#050811"/>
     </linearGradient>
-    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+
+    <!-- Outer Gradient Border (matching Header.tsx: amber-400 via amber-500 to rose-600) -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FCD34D"/>
-      <stop offset="50%" stop-color="#F59E0B"/>
-      <stop offset="100%" stop-color="#B45309"/>
+      <stop offset="45%" stop-color="#F59E0B"/>
+      <stop offset="85%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#E11D48"/>
     </linearGradient>
-    <linearGradient id="crimson" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F43F5E"/>
-      <stop offset="100%" stop-color="#BE123C"/>
+
+    <!-- Golden Text Gradient for AF -->
+    <linearGradient id="goldText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="35%" stop-color="#FBBF24"/>
+      <stop offset="85%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+
+    <!-- Inner Badge Background -->
+    <linearGradient id="innerBadgeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0B132B"/>
     </linearGradient>
   </defs>
 
-  <!-- Background rounded rect -->
+  <!-- Background Canvas -->
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  
-  <!-- Outer glowing accent border -->
-  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="url(#gold)" stroke-width="4" stroke-opacity="0.3"/>
 
-  <!-- Inner Crest Circle -->
-  <circle cx="256" cy="230" r="140" fill="#0E172A" stroke="url(#gold)" stroke-width="6"/>
+  <!-- Outer Glowing Gradient Border -->
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="url(#borderGrad)" stroke-width="12" stroke-linecap="round"/>
 
-  <!-- Crown / Tie Motif -->
-  <path d="M 216 140 L 256 168 L 296 140 L 286 190 L 226 190 Z" fill="url(#gold)"/>
-  <circle cx="216" cy="136" r="6" fill="#FCD34D"/>
-  <circle cx="256" cy="164" r="7" fill="#FCD34D"/>
-  <circle cx="296" cy="136" r="6" fill="#FCD34D"/>
+  <!-- Subtle Inner Guide Line -->
+  <rect x="42" y="42" width="428" height="428" rx="76" fill="none" stroke="#F59E0B" stroke-width="2" stroke-opacity="0.35" stroke-dasharray="10 8"/>
 
-  <!-- Monogram AF -->
-  <text x="256" y="278" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="104" fill="#FFFFFF" text-anchor="middle" letter-spacing="-2">
-    AF
-  </text>
-  
-  <!-- Ribbon Badge -->
-  <path d="M 166 320 L 346 320 L 330 355 L 256 345 L 182 355 Z" fill="url(#crimson)"/>
-  <text x="256" y="340" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="18" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">
-    ESTD • 2024
-  </text>
+  <!-- Center AF Badge (Exact look of the header preview icon) -->
+  <g transform="translate(0, -10)">
+    <!-- Inner Rounded Square Badge -->
+    <rect x="116" y="90" width="280" height="230" rx="44" fill="url(#innerBadgeBg)" stroke="url(#borderGrad)" stroke-width="6"/>
 
-  <!-- Bottom Brand Title -->
-  <text x="256" y="420" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="34" fill="#FFFFFF" text-anchor="middle" letter-spacing="6">
+    <!-- Subtle Crown Accent on top of badge -->
+    <path d="M 226 72 L 256 86 L 286 72 L 278 94 L 234 94 Z" fill="#FBBF24"/>
+    <circle cx="226" cy="69" r="4.5" fill="#FDE68A"/>
+    <circle cx="256" cy="82" r="5.5" fill="#FDE68A"/>
+    <circle cx="286" cy="69" r="4.5" fill="#FDE68A"/>
+
+    <!-- Monogram: 'A' and 'F' as clean, bold vector geometric paths -->
+    <!-- 'A' -->
+    <path d="M 198 126 L 244 266 L 207 266 L 196 230 L 156 230 L 145 266 L 108 266 L 154 126 Z M 176 162 L 163 204 L 189 204 Z" fill="url(#goldText)"/>
+
+    <!-- 'F' -->
+    <path d="M 268 126 L 358 126 L 358 155 L 305 155 L 305 183 L 349 183 L 349 211 L 305 211 L 305 266 L 268 266 Z" fill="url(#goldText)"/>
+  </g>
+
+  <!-- Gold Divider with Star / Diamond -->
+  <line x1="84" y1="360" x2="220" y2="360" stroke="url(#borderGrad)" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="256,350 266,360 256,370 246,360" fill="#FBBF24"/>
+  <line x1="292" y1="360" x2="428" y2="360" stroke="url(#borderGrad)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- ABHI FASHION Title -->
+  <text x="256" y="412" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="42" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">
     ABHI FASHION
   </text>
-  <text x="256" y="450" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="16" fill="#F59E0B" text-anchor="middle" letter-spacing="4">
+
+  <!-- Tagline -->
+  <text x="256" y="452" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="19" fill="#F59E0B" text-anchor="middle" letter-spacing="6">
     MEN'S WEAR • CHHUIKHADAN
   </text>
 </svg>
