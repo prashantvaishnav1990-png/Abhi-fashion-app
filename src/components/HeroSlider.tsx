@@ -6,12 +6,14 @@ interface HeroSliderProps {
   banners: Banner[];
   onSelectCategory: (category: CategoryId) => void;
   onShopNow: () => void;
+  onOpenOfferManager?: () => void;
 }
 
 export const HeroSlider: React.FC<HeroSliderProps> = ({
   banners,
   onSelectCategory,
   onShopNow,
+  onOpenOfferManager,
 }) => {
   const activeBanners = banners.filter((b) => b.isEnabled);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -31,6 +33,18 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
   return (
     <div className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-800/80 shadow-2xl">
       <div className="relative min-h-[380px] sm:min-h-[420px] flex items-center">
+        {/* Quick Offer Manager Button directly on top box */}
+        {onOpenOfferManager && (
+          <button
+            onClick={onOpenOfferManager}
+            className="absolute top-3.5 right-3.5 z-30 px-3 py-1.5 rounded-xl bg-slate-950/85 hover:bg-slate-900 text-amber-400 hover:text-amber-300 border border-amber-500/40 text-xs font-black backdrop-blur-md shadow-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer group"
+            title="Uper ke box me naya offer photo ke sath jodein"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
+            <span>+ नया ऑफर जोड़ें (Manage Box)</span>
+          </button>
+        )}
+
         {/* Background Image with Dark Vignette & Gradient Overlays */}
         <img
           src={currentBanner.image}

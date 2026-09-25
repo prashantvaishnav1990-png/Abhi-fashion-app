@@ -1,0 +1,215 @@
+[
+  {
+    "id": "prod-1",
+    "name": "Royal Oxford Luxury Cotton Shirt",
+    "category": "shirts",
+    "mrp": 1999,
+    "sellingPrice": 999,
+    "discountPercent": 50,
+    "sizes": [
+      "38",
+      "40",
+      "42",
+      "44"
+    ],
+    "colors": [
+      "Pure White",
+      "Navy Blue",
+      "Wine Red"
+    ],
+    "stock": 14,
+    "description": "Crafted from 100% premium combed Egyptian cotton. Breathable, wrinkle-resistant finish with French placket and mother-of-pearl buttons. Ideal for executive meetings and festive evenings.",
+    "images": [
+      "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1200&auto=format&fit=crop&q=90",
+      "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=1200&auto=format&fit=crop&q=90",
+      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1200&auto=format&fit=crop&q=90"
+    ],
+    "isFeatured": true,
+    "isNewArrival": false,
+    "rating": 4.8,
+    "reviewsCount": 38,
+    "createdAt": "2026-03-01T10:00:00Z"
+  },
+  {
+    "id": "prod-2",
+    "name": "Urban Oversized Heavyweight Tee",
+    "category": "t-shirts",
+    "mrp": 1299,
+    "sellingPrice": 649,
+    "discountPercent": 50,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "colors": [
+      "Jet Black",
+      "Sage Olive",
+      "Off-White"
+    ],
+    "stock": 22,
+    "description": "240 GSM pre-shrunk French Terry cotton. Drop shoulder boxy fit tailored for modern streetwear comfort. High-density silicon chest emblem.",
+    "images": [
+      "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=1200&auto=format&fit=crop&q=90",
+      "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1200&auto=format&fit=crop&q=90"
+    ],
+    "isFeatured": true,
+    "isNewArrival": true,
+    "rating": 4.9,
+    "reviewsCount": 54,
+    "createdAt": "2026-03-10T10:00:00Z"
+  },
+  {
+    "id": "prod-3",
+    "name": "Vintage Distressed Slim Fit Jeans",
+    "category": "jeans",
+    "mrp": 2799,
+    "sellingPrice": 1499,
+    "discountPercent": 46,
+    "sizes": [
+      "30",
+      "32",
+      "34",
+      "36"
+    ],
+    "colors": [
+      "Medium Indigo",
+      "Faded Stone Wash",
+      "Charcoal Black"
+    ],
+    "stock": 9,
+    "description": "Authentic 12.5oz ring-spun denim with 2% elastane power stretch. Hand-whiskered and stone-washed indigo finish with reinforced pocket stitching.",
+    "images": [
+      "https://images.unsplash.com/photo-1542272604-780c96856592?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": true,
+    "isNewArrival": false,
+    "rating": 4.7,
+    "reviewsCount": 42,
+    "createdAt": "2026-02-15T10:00:00Z"
+  },
+  {
+    "id": "prod-4",
+    "name": "Tailored Italian Pleated Formal Trousers",
+    "category": "trousers",
+    "mrp": 2299,
+    "sellingPrice": 1199,
+    "discountPercent": 48,
+    "sizes": [
+      "30",
+      "32",
+      "34",
+      "36",
+      "38"
+    ],
+    "stock": 12,
+    "description": "Sophisticated tapered trousers featuring double forward pleats and extended button tab waist. Breathable poly-viscose blend that drapes elegantly.",
+    "images": [
+      "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": false,
+    "isNewArrival": true,
+    "rating": 4.6,
+    "reviewsCount": 29,
+    "createdAt": "2026-03-12T10:00:00Z"
+  },
+  {
+    "id": "prod-5",
+    "name": "Midnight Black Moto Leather Jacket",
+    "category": "jackets",
+    "mrp": 4999,
+    "sellingPrice": 2699,
+    "discountPercent": 46,
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 4,
+    "description": "High-grade supple faux leather with quilted shoulder panels and matte black heavy YKK zippers. Satin lining for wind resistance and comfortable layering.",
+    "images": [
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": true,
+    "isNewArrival": true,
+    "rating": 4.9,
+    "reviewsCount": 61,
+    "createdAt": "2026-03-08T10:00:00Z"
+  },
+  {
+    "id": "prod-6",
+    "name": "Pro-Glide White Leather Court Sneakers",
+    "category": "footwear",
+    "mrp": 3499,
+    "sellingPrice": 1799,
+    "discountPercent": 49,
+    "sizes": [
+      "7 UK",
+      "8 UK",
+      "9 UK",
+      "10 UK"
+    ],
+    "stock": 8,
+    "description": "Clean minimalist low-top sneakers in soft micro-grain leather. Memory foam insole with anti-skid vulcanized rubber cupsole for all-day comfort.",
+    "images": [
+      "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": true,
+    "isNewArrival": false,
+    "rating": 4.8,
+    "reviewsCount": 33,
+    "createdAt": "2026-02-20T10:00:00Z"
+  },
+  {
+    "id": "prod-7",
+    "name": "Executive Full-Grain Leather Reversible Belt",
+    "category": "accessories",
+    "mrp": 1499,
+    "sellingPrice": 699,
+    "discountPercent": 53,
+    "sizes": [
+      "Free Size (28-40)"
+    ],
+    "stock": 25,
+    "description": "Dual-sided reversible belt (Deep Black and Rich Cognac Tan) with a rotatable brush-metal alloy pin buckle. Made from 100% genuine top-grain leather.",
+    "images": [
+      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": false,
+    "isNewArrival": false,
+    "rating": 4.6,
+    "reviewsCount": 19,
+    "createdAt": "2026-01-28T10:00:00Z"
+  },
+  {
+    "id": "prod-8",
+    "name": "Classic Linen Resort Cuban Collar Shirt",
+    "category": "shirts",
+    "mrp": 2199,
+    "sellingPrice": 1099,
+    "discountPercent": 50,
+    "sizes": [
+      "38",
+      "40",
+      "42",
+      "44"
+    ],
+    "stock": 3,
+    "description": "Lightweight pure linen casual shirt with retro camp collar and straight vented hem. Ideal for summer holidays and breezy casual hangouts.",
+    "images": [
+      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&auto=format&fit=crop&q=80"
+    ],
+    "isFeatured": false,
+    "isNewArrival": true,
+    "rating": 4.8,
+    "reviewsCount": 27,
+    "createdAt": "2026-03-14T10:00:00Z"
+  }
+]

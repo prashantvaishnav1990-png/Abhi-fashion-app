@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Zap, Eye, Check, Sparkles } from 'lucide-react';
+import { ShoppingBag, Zap, Eye, Check, Sparkles, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 import { getColorHex, getHdImageUrl } from '../utils/productHelpers';
 
@@ -8,6 +8,8 @@ interface ProductCardProps {
   onSelectProduct: (product: Product) => void;
   onAddToCart: (product: Product, size: string, color?: string) => void;
   onBuyNow: (product: Product, size: string, color?: string) => void;
+  onDeleteProduct?: (product: Product) => void;
+  isDeleteMode?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -15,6 +17,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onSelectProduct,
   onAddToCart,
   onBuyNow,
+  onDeleteProduct,
+  isDeleteMode = false,
 }) => {
   const [selectedSize, setSelectedSize] = useState<string>(
     product.sizes.length > 0 ? product.sizes[0] : 'Standard'
@@ -23,6 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     product.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
   const [justAdded, setJustAdded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 4;
@@ -40,6 +45,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.stopPropagation();
     if (isOutOfStock) return;
     onBuyNow(product, selectedSize, selectedColor);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDeleteProduct) return;
+    const confirmDelete = window.confirm(
+      `Kya aap "${product.name}" ko dukaan ke screen se delete karna chahte hain?`
+    );
+    if (confirmDelete) {
+      setIsDeleting(true);
+      onDeleteProduct(product);
+    }
   };
 
   return (
@@ -76,7 +93,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Stock status indicator */}
-        <div className="absolute top-2.5 right-2.5 z-10">
+        <div className="absolute bottom-2.5 left-2.5 z-10">
           {isOutOfStock ? (
             <span className="px-2 py-0.5 rounded-md bg-slate-900/90 text-rose-400 border border-rose-500/40 text-[10px] font-bold">
               Sold Out
@@ -91,6 +108,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           )}
         </div>
+
+        {/* Delete Product from Screen Button */}
+        {onDeleteProduct && (
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+            title="Dukaan ke screen se ye product delete karein"
+            aria-label={`Delete ${product.name}`}
+            className={`absolute top-2.5 right-2.5 z-20 p-2 rounded-xl transition duration-200 cursor-pointer shadow-md flex items-center gap-1 ${
+              isDeleteMode
+                ? 'bg-rose-600 text-white hover:bg-rose-700 ring-2 ring-white/80 scale-105'
+                : 'bg-slate-900/85 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30'
+            }`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {isDeleteMode && (
+              <span className="text-[10px] font-black uppercase">Delete</span>
+            )}
+          </button>
+        )}
 
         {/* Quick view floating hint on desktop */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center justify-center pointer-events-none">

@@ -11,12 +11,16 @@ import {
   ShoppingBag,
   ArrowRight,
   AlertTriangle,
+  Smartphone,
+  User,
 } from 'lucide-react';
-import { Order, OrderStatus, StoreSettings } from '../types';
+import { CustomerProfile, Order, OrderStatus, StoreSettings } from '../types';
 
 interface OrdersViewProps {
   orders: Order[];
   settings: StoreSettings;
+  currentCustomer?: CustomerProfile | null;
+  onOpenLogin?: () => void;
   onCancelOrder: (orderId: string) => void;
   onContinueShopping: () => void;
 }
@@ -24,6 +28,8 @@ interface OrdersViewProps {
 export const OrdersView: React.FC<OrdersViewProps> = ({
   orders,
   settings,
+  currentCustomer,
+  onOpenLogin,
   onCancelOrder,
   onContinueShopping,
 }) => {
@@ -101,6 +107,59 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           />
         </div>
       </div>
+
+      {/* Customer Status / Login Prompt */}
+      {currentCustomer ? (
+        <div className="p-3.5 mb-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+              <User className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white">
+                Orders for: <span className="text-amber-400">{currentCustomer.name || 'Customer'}</span> (+91 {currentCustomer.mobile})
+              </p>
+              <p className="text-[10px] text-slate-400">
+                Aapke is mobile number se jude sabhi live aur purane orders yahan dikhenge.
+              </p>
+            </div>
+          </div>
+          {onOpenLogin && (
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold border border-slate-700 transition cursor-pointer"
+            >
+              Account
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="p-4 mb-5 rounded-2xl bg-amber-950/20 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">
+                Apne Sabhi Orders Dekhne Ke Liye Mobile Se Login Karein
+              </h4>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                Chahe aap naye device me ho, apna mobile number darj karke apne pichle saare orders aur live tracking dekh sakte hain.
+              </p>
+            </div>
+          </div>
+          {onOpenLogin && (
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 text-xs font-black shrink-0 transition cursor-pointer shadow-md"
+            >
+              📱 Mobile Login Karein
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">

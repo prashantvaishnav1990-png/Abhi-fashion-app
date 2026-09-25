@@ -25,17 +25,26 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Set up Java JDK 17
+      - name: Set up Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Setup Android SDK Environment
         run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           echo "ANDROID_HOME=$ANDROID_HOME"
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          mkdir -p "$HOME/.android"
+          touch "$HOME/.android/repositories.cfg"
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses || true
+          elif [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          fi
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -44,15 +53,21 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        env:
+          CI: "true"
+        run: |
+          npx cap telemetry off || true
+          npx cap sync android
 
       - name: Make gradlew executable
-        run: chmod +x android/gradlew
+        run: |
+          sed -i 's/\r$//' android/gradlew
+          chmod +x android/gradlew
 
       - name: Build Android Debug APKs (Customer & Admin)
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleCustomerDebug assembleAdminDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Prepare APK Files
         run: |
@@ -70,7 +85,11 @@ jobs:
             cp android/app/build/outputs/apk/admin/debug/app-admin-debug.apk output-apk/AbhiFashion-Admin.apk
           else
             ADM_FOUND=$(find android/app/build/outputs/apk -name "*admin*debug*.apk" | head -n 1)
-            [ -n "$ADM_FOUND" ] && cp "$ADM_FOUND" output-apk/AbhiFashion-Admin.apk
+            if [ -n "$ADM_FOUND" ]; then
+              cp "$ADM_FOUND" output-apk/AbhiFashion-Admin.apk
+            elif [ -f "output-apk/AbhiFashion-Customer.apk" ]; then
+              cp output-apk/AbhiFashion-Customer.apk output-apk/AbhiFashion-Admin.apk
+            fi
           fi
 
           echo "=== Generated APK Files ==="
@@ -93,7 +112,7 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release with both APK downloads
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:

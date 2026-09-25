@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Sparkles,
   Maximize2,
+  Trash2,
 } from 'lucide-react';
 import { Product, StoreSettings } from '../types';
 import { HDImageLightbox } from './HDImageLightbox';
@@ -24,6 +25,7 @@ interface ProductDetailsModalProps {
   onClose: () => void;
   onAddToCart: (product: Product, size: string, quantity: number, color?: string) => void;
   onBuyNow: (product: Product, size: string, quantity: number, color?: string) => void;
+  onDeleteProduct?: (product: Product) => void;
 }
 
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
@@ -32,6 +34,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onClose,
   onAddToCart,
   onBuyNow,
+  onDeleteProduct,
 }) => {
   if (!product) return null;
 
@@ -420,6 +423,27 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <span>Easy Size Exchange</span>
               </div>
             </div>
+
+            {/* Dukaan Owner Quick Delete Option */}
+            {onDeleteProduct && (
+              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80">
+                <span className="text-xs text-slate-400">Dukaan Owner Action:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = window.confirm(`Kya aap "${product.name}" ko dukaan se delete karna chahte hain?`);
+                    if (ok) {
+                      onDeleteProduct(product);
+                      onClose();
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition active:scale-95"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Ye Product Delete Karein</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

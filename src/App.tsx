@@ -13,13 +13,25 @@ import {
   RotateCcw,
   ArrowRight,
   Filter,
+  Trash2,
+  Trash,
+  Smartphone,
+  User,
+  X,
+  Plus,
+  RefreshCw,
+  Package,
+  Radio,
+  Image as ImageIcon,
 } from 'lucide-react';
+import { INITIAL_PRODUCTS } from './data/initialData';
 import {
   Banner,
   CartItem,
   Category,
   CategoryId,
   CustomerAddress,
+  CustomerProfile,
   Order,
   OrderStatus,
   PaymentMethod,
@@ -27,6 +39,7 @@ import {
   StoreSettings,
 } from './types';
 import { StoreService, subscribeToStore } from './services/storeStorage';
+import { CustomerService } from './services/customerService';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { HeroSlider } from './components/HeroSlider';
@@ -40,7 +53,8 @@ import { OrdersView } from './components/OrdersView';
 import { SearchModal } from './components/SearchModal';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminApp } from './components/AdminApp';
-import { WhatsAppFloatingButton } from './components/WhatsAppFloatingButton';
+import { CustomerLoginModal } from './components/CustomerLoginModal';
+import { OfferBannerModal } from './components/OfferBannerModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 
@@ -134,11 +148,19 @@ export default function App() {
   const [settings, setSettings] = useState<StoreSettings>(StoreService.getSettings());
   const [orders, setOrders] = useState<Order[]>([]);
 
+  // Customer Profile & Multi-Device Mobile Sync State
+  const [customer, setCustomer] = useState<CustomerProfile | null>(() =>
+    CustomerService.getCurrentCustomer()
+  );
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+
   // Customer Navigation State (No Admin tab in customer navigation!)
   const [activeTab, setActiveTab] = useState<'home' | 'categories' | 'cart' | 'orders'>('home');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
 
-  // Cart State (Persisted in localStorage)
+  // Cart State (Persisted in localStorage & Synced with Customer Mobile on Server)
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('abhi_fashion_cart_v1');
@@ -152,6 +174,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
@@ -167,17 +190,107 @@ export default function App() {
 
     refreshData();
     const unsubscribe = subscribeToStore(refreshData);
-    return () => unsubscribe();
+    const unsubCustomer = CustomerService.subscribe((c) => setCustomer(c));
+    return () => {
+      unsubscribe();
+      unsubCustomer();
+    };
   }, []);
 
-  // Save Cart on change
+  // Automatic Mobile Login Prompt on First App Open/Download & Cloud Sync
+  useEffect(() => {
+    if (customer && customer.mobile) {
+      // Sync fresh profile & previous orders from server
+      CustomerService.refreshProfile(customer.mobile).then((res) => {
+        if (res.customer) {
+          setCustomer(res.customer);
+          // Restore cloud cart if available
+          if (res.customer.cart && res.customer.cart.length > 0 && cart.length === 0) {
+            setCart(res.customer.cart);
+          }
+        }
+      });
+    } else {
+      // Prompt user to login with mobile number when opening/downloading app
+      const hasPrompted = sessionStorage.getItem('abhi_login_prompted');
+      if (!hasPrompted) {
+        sessionStorage.setItem('abhi_login_prompted', 'true');
+        const timer = setTimeout(() => {
+          setIsLoginModalOpen(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
+  // Save Cart locally and sync to customer account on server
   useEffect(() => {
     try {
       localStorage.setItem('abhi_fashion_cart_v1', JSON.stringify(cart));
     } catch (e) {
       console.error('Failed to save cart:', e);
     }
-  }, [cart]);
+    if (customer && customer.mobile) {
+      CustomerService.syncCartToServer(cart);
+    }
+  }, [cart, customer]);
+
+  // Handle Deleting Sample Products directly from the screen
+  const handleDeleteSampleProducts = () => {
+    const ok = window.confirm(
+      'Kya aap screen par dikh rahe sabhi sample/demo products ko delete karna chahte hain? Isse aapki catalog screen bilkul saaf ho jayegi aur aap apne naye products daal sakenge.'
+    );
+    if (!ok) return;
+
+    const count = StoreService.deleteSampleProducts();
+    setDeleteNotice(`✅ ${count} Sample products safalta-purvak screen se delete ho gaye.`);
+    setTimeout(() => setDeleteNotice(null), 4000);
+  };
+
+  const handleDeleteSingleProduct = (product: Product) => {
+    StoreService.deleteProduct(product.id);
+    setDeleteNotice(`🗑️ "${product.name}" screen se delete ho gaya.`);
+    setTimeout(() => setDeleteNotice(null), 3000);
+  };
+
+  const handleSaveBanner = (banner: Banner) => {
+    StoreService.saveBanner(banner);
+    setBanners(StoreService.getBanners());
+    setDeleteNotice(`✅ Offer "${banner.title}" save ho gaya aur sabhi customer ke app me live hai!`);
+    setTimeout(() => setDeleteNotice(null), 3500);
+  };
+
+  const handleDeleteBanner = (id: string) => {
+    StoreService.deleteBanner(id);
+    setBanners(StoreService.getBanners());
+    setDeleteNotice(`🗑️ Offer banner screen se hata diya gaya.`);
+    setTimeout(() => setDeleteNotice(null), 3000);
+  };
+
+  const handleRestoreSampleProducts = () => {
+    const ok = window.confirm('Kya aap sample products ko wapas screen par lana chahte hain?');
+    if (!ok) return;
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: INITIAL_PRODUCTS }),
+    })
+      .then(() => {
+        localStorage.setItem('abhi_fashion_products_v1', JSON.stringify(INITIAL_PRODUCTS));
+        setProducts(INITIAL_PRODUCTS);
+        setDeleteNotice('✅ Sample products wapas restore ho gaye hain!');
+        setTimeout(() => setDeleteNotice(null), 3500);
+      })
+      .catch(() => {});
+  };
+
+  const handleCustomerLoginSuccess = (loggedInCustomer: CustomerProfile, customerOrders: Order[]) => {
+    setCustomer(loggedInCustomer);
+    if (loggedInCustomer.cart && loggedInCustomer.cart.length > 0) {
+      setCart(loggedInCustomer.cart);
+    }
+    setOrders(StoreService.getOrders());
+  };
 
   // Cart Actions
   const handleAddToCart = (product: Product, size: string, quantity = 1) => {
@@ -348,14 +461,29 @@ export default function App() {
         onOpenAdmin={() => handleSwitchMode('admin')}
         showAdminButton={false}
         activeView={activeTab}
+        currentCustomer={customer}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
       />
 
       {/* Main Content Areas */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4">
+        {/* Delete Feedback Toast Notice */}
+        {deleteNotice && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between shadow-lg animate-in fade-in">
+            <span>{deleteNotice}</span>
+            <button
+              onClick={() => setDeleteNotice(null)}
+              className="p-1 rounded-full hover:bg-emerald-900 text-emerald-300 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* VIEW 1: HOME PAGE */}
         {activeTab === 'home' && (
           <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Hero Slider with exact prompt banner slogans */}
+            {/* Hero Slider */}
             <HeroSlider
               banners={banners}
               onSelectCategory={(catId) => {
@@ -519,17 +647,37 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {displayedProducts.map((prod) => (
-                  <ProductCard
-                    key={prod.id}
-                    product={prod}
-                    onSelectProduct={setSelectedProduct}
-                    onAddToCart={(p, s) => handleAddToCart(p, s)}
-                    onBuyNow={(p, s) => handleBuyNow(p, s)}
-                  />
-                ))}
-              </div>
+              {displayedProducts.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center">
+                    <Package className="w-7 h-7" />
+                  </div>
+                  <div className="max-w-md mx-auto">
+                    <h3 className="text-base font-black text-white uppercase">Is Category Me Products Jald Hi Aa Rahe Hain</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Kripya doosri category browse karein ya sabhi collections check karein.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition cursor-pointer"
+                  >
+                    View All Products
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                  {displayedProducts.map((prod) => (
+                    <ProductCard
+                      key={prod.id}
+                      product={prod}
+                      onSelectProduct={setSelectedProduct}
+                      onAddToCart={(p, s) => handleAddToCart(p, s)}
+                      onBuyNow={(p, s) => handleBuyNow(p, s)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         )}
@@ -609,8 +757,17 @@ export default function App() {
         {/* VIEW 4: MY ORDERS VIEW */}
         {activeTab === 'orders' && (
           <OrdersView
-            orders={orders}
+            orders={
+              customer?.mobile
+                ? orders.filter((o) => {
+                    const oMob = String(o.customer?.mobile || '').replace(/\D/g, '').slice(-10);
+                    return oMob === customer.mobile;
+                  })
+                : orders
+            }
             settings={settings}
+            currentCustomer={customer}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
             onCancelOrder={(orderId) => StoreService.updateOrderStatus(orderId, 'Cancelled')}
             onContinueShopping={() => setActiveTab('home')}
           />
@@ -726,9 +883,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Floating WhatsApp Action Button */}
-      <WhatsAppFloatingButton settings={settings} />
-
       {/* Mobile Sticky Bottom Navigation */}
       <BottomNav
         activeTab={activeTab}
@@ -740,6 +894,18 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         cartCount={totalCartCount}
+      />
+
+      {/* Customer Mobile Login Modal */}
+      <CustomerLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        currentCustomer={customer}
+        onLoginSuccess={handleCustomerLoginSuccess}
+        onLogout={() => {
+          CustomerService.logout();
+          setCustomer(null);
+        }}
       />
 
       {/* Product Details Modal */}
@@ -774,6 +940,7 @@ export default function App() {
         onClose={() => setIsCheckoutOpen(false)}
         items={cart}
         settings={settings}
+        currentCustomer={customer}
         onCreateOrder={handleCreateOrder}
         onOrderSuccess={(order) => {
           setConfirmedOrder(order);
@@ -800,6 +967,16 @@ export default function App() {
         onAddToCart={handleAddToCart}
         onBuyNow={handleBuyNow}
       />
+
+      {/* Top Box Offer & Banner Manager Modal */}
+      {isOfferModalOpen && (
+        <OfferBannerModal
+          banners={banners}
+          onSaveBanner={handleSaveBanner}
+          onDeleteBanner={handleDeleteBanner}
+          onClose={() => setIsOfferModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

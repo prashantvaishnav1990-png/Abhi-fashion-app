@@ -1,6 +1,6 @@
 import React from 'react';
-import { Search, ShoppingBag, Shield, Sparkles, MapPin } from 'lucide-react';
-import { StoreSettings } from '../types';
+import { Search, ShoppingBag, Shield, Sparkles, MapPin, Smartphone, User } from 'lucide-react';
+import { CustomerProfile, StoreSettings } from '../types';
 
 interface HeaderProps {
   settings: StoreSettings;
@@ -11,6 +11,8 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   showAdminButton?: boolean;
   activeView: string;
+  currentCustomer?: CustomerProfile | null;
+  onOpenLogin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   showAdminButton = false,
   activeView,
+  currentCustomer,
+  onOpenLogin,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur-md border-b border-slate-800/80 shadow-md">
@@ -81,6 +85,35 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Shield className="w-4 h-4 text-amber-400" />
               <span className="hidden sm:inline">Admin App</span>
+            </button>
+          )}
+
+          {/* Mobile Login / Customer Profile Button */}
+          {onOpenLogin && (
+            <button
+              id="header-login-btn"
+              onClick={onOpenLogin}
+              title={currentCustomer ? `Logged in: +91 ${currentCustomer.mobile}` : 'Login with Mobile Number'}
+              aria-label="Customer Profile & Mobile Login"
+              className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border ${
+                currentCustomer
+                  ? 'bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border-emerald-500/40'
+                  : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+              }`}
+            >
+              {currentCustomer ? (
+                <>
+                  <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="hidden sm:inline max-w-[85px] truncate">
+                    {currentCustomer.name ? currentCustomer.name.split(' ')[0] : currentCustomer.mobile.slice(-4)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Smartphone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="hidden sm:inline">Login</span>
+                </>
+              )}
             </button>
           )}
 

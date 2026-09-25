@@ -423,7 +423,8 @@ async function sendWhatsAppNotification(
 // -------------------------------------------------------------
 async function startServer() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // API ROUTES -------------------------------------------------
 
@@ -670,6 +671,85 @@ Kripya order confirm karke packing shuru karein!`;
     }
   }
 
+  // -------------------------------------------------------------
+  // REAL-TIME BROADCAST & SERVER-SENT EVENTS (SSE)
+  // Ensures any changes (new products, offers, orders) immediately
+  // reach all connected customer apps across all devices
+  // -------------------------------------------------------------
+  let sseClients: express.Response[] = [];
+  const currentVersions = {
+    products: Date.now(),
+    banners: Date.now(),
+    categories: Date.now(),
+    settings: Date.now(),
+    orders: Date.now(),
+  };
+
+  function broadcastRealtimeUpdate(
+    type: 'products' | 'banners' | 'categories' | 'settings' | 'orders',
+    data?: any
+  ) {
+    currentVersions[type] = Date.now();
+    const message = JSON.stringify({
+      type,
+      data,
+      timestamp: currentVersions[type],
+      versions: currentVersions,
+    });
+
+    sseClients = sseClients.filter((client) => {
+      try {
+        client.write(`event: ${type}\ndata: ${message}\n\n`);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  // Real-time Event Stream
+  app.get('/api/sync/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    // Send immediate initial sync event with current versions
+    res.write(
+      `event: connected\ndata: ${JSON.stringify({
+        status: 'connected',
+        versions: currentVersions,
+        timestamp: Date.now(),
+      })}\n\n`
+    );
+
+    sseClients.push(res);
+
+    // Keep connection alive with periodic heartbeats every 15s
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': keepalive\n\n');
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 15000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      sseClients = sseClients.filter((c) => c !== res);
+    });
+  });
+
+  // Version status check for fast lightweight polling fallback
+  app.get('/api/sync/versions', (req, res) => {
+    res.json({
+      versions: currentVersions,
+      connectedDevices: sseClients.length,
+      serverTime: new Date().toISOString(),
+    });
+  });
+
   // 1. ORDERS API
   app.get('/api/orders', (req, res) => {
     const orders = readJsonFile<any[]>(ORDERS_FILE, []);
@@ -812,10 +892,167 @@ http://localhost:3000/admin`;
     const { products } = req.body;
     if (Array.isArray(products)) {
       writeJsonFile(PRODUCTS_FILE, products);
+      broadcastRealtimeUpdate('products', products);
       res.json({ success: true, total: products.length });
     } else {
       res.status(400).json({ error: 'Array of products required' });
     }
+  });
+
+  app.delete('/api/products/:id', (req, res) => {
+    const { id } = req.params;
+    let products = readJsonFile<any[]>(PRODUCTS_FILE, []);
+    products = products.filter((p) => p.id !== id);
+    writeJsonFile(PRODUCTS_FILE, products);
+    broadcastRealtimeUpdate('products', products);
+    res.json({ success: true, remaining: products.length });
+  });
+
+  // 2.1 CUSTOMER ACCOUNTS & DEVICE SYNC (Multi-Device Login by Mobile)
+  const CUSTOMERS_FILE = path.join(DATA_DIR, 'customers.json');
+
+  // Customer Login or Register by Mobile Number
+  app.post('/api/customer/login', (req, res) => {
+    const { mobile, name } = req.body;
+    if (!mobile) {
+      res.status(400).json({ error: 'Mobile number is required' });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      res.status(400).json({ error: 'Please provide a valid 10-digit mobile number' });
+      return;
+    }
+
+    const customers = readJsonFile<any[]>(CUSTOMERS_FILE, []);
+    let customer = customers.find((c) => c.mobile === cleanMobile);
+
+    if (customer) {
+      if (name && name.trim()) {
+        customer.name = name.trim();
+      }
+      customer.lastLoginAt = new Date().toISOString();
+    } else {
+      customer = {
+        mobile: cleanMobile,
+        name: (name && name.trim()) || 'Guest Customer',
+        address: '',
+        city: 'Chhuikhadan',
+        state: 'Chhattisgarh',
+        pincode: '491885',
+        landmark: '',
+        upiId: '',
+        cart: [],
+        wishlist: [],
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      customers.push(customer);
+    }
+
+    writeJsonFile(CUSTOMERS_FILE, customers);
+
+    // Fetch all past orders for this customer by mobile number
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    const customerOrders = orders.filter((o) => {
+      const orderMob = String(o.customer?.mobile || '').replace(/\D/g, '').slice(-10);
+      return orderMob === cleanMobile;
+    });
+
+    res.json({
+      success: true,
+      customer,
+      orders: customerOrders,
+    });
+  });
+
+  // Fetch Customer Profile & Past Orders by Mobile
+  app.get('/api/customer/profile', (req, res) => {
+    const mobile = req.query.mobile;
+    if (!mobile) {
+      res.status(400).json({ error: 'Mobile query param is required' });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    const customers = readJsonFile<any[]>(CUSTOMERS_FILE, []);
+    const customer = customers.find((c) => c.mobile === cleanMobile) || null;
+
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    const customerOrders = orders.filter((o) => {
+      const orderMob = String(o.customer?.mobile || '').replace(/\D/g, '').slice(-10);
+      return orderMob === cleanMobile;
+    });
+
+    res.json({
+      success: true,
+      customer,
+      orders: customerOrders,
+    });
+  });
+
+  // Sync Customer Data (Profile, Cart, Addresses)
+  app.post('/api/customer/sync', (req, res) => {
+    const { mobile, name, address, city, state, pincode, landmark, upiId, cart, wishlist } = req.body;
+    if (!mobile) {
+      res.status(400).json({ error: 'Mobile number is required' });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    const customers = readJsonFile<any[]>(CUSTOMERS_FILE, []);
+    let customer = customers.find((c) => c.mobile === cleanMobile);
+
+    if (customer) {
+      if (name !== undefined) customer.name = name;
+      if (address !== undefined) customer.address = address;
+      if (city !== undefined) customer.city = city;
+      if (state !== undefined) customer.state = state;
+      if (pincode !== undefined) customer.pincode = pincode;
+      if (landmark !== undefined) customer.landmark = landmark;
+      if (upiId !== undefined) customer.upiId = upiId;
+      if (cart !== undefined) customer.cart = cart;
+      if (wishlist !== undefined) customer.wishlist = wishlist;
+      customer.updatedAt = new Date().toISOString();
+    } else {
+      customer = {
+        mobile: cleanMobile,
+        name: name || 'Valued Customer',
+        address: address || '',
+        city: city || 'Chhuikhadan',
+        state: state || 'Chhattisgarh',
+        pincode: pincode || '491885',
+        landmark: landmark || '',
+        upiId: upiId || '',
+        cart: cart || [],
+        wishlist: wishlist || [],
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      customers.push(customer);
+    }
+
+    writeJsonFile(CUSTOMERS_FILE, customers);
+    res.json({ success: true, customer });
+  });
+
+  // Admin: Get all registered customers
+  app.get('/api/customers', (req, res) => {
+    const customers = readJsonFile<any[]>(CUSTOMERS_FILE, []);
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+
+    const enriched = customers.map((c) => {
+      const custOrders = orders.filter((o) => {
+        const orderMob = String(o.customer?.mobile || '').replace(/\D/g, '').slice(-10);
+        return orderMob === c.mobile;
+      });
+      const totalSpent = custOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      return {
+        ...c,
+        ordersCount: custOrders.length,
+        totalSpent,
+      };
+    });
+
+    res.json({ customers: enriched });
   });
 
   // 3. SETTINGS API
@@ -828,6 +1065,7 @@ http://localhost:3000/admin`;
     const { settings } = req.body;
     if (settings && typeof settings === 'object') {
       writeJsonFile(SETTINGS_FILE, settings);
+      broadcastRealtimeUpdate('settings', settings);
       res.json({ success: true });
     } else {
       res.status(400).json({ error: 'Settings object required' });
@@ -844,15 +1082,53 @@ http://localhost:3000/admin`;
     const { categories } = req.body;
     if (Array.isArray(categories)) {
       writeJsonFile(CATEGORIES_FILE, categories);
+      broadcastRealtimeUpdate('categories', categories);
       res.json({ success: true });
     } else {
       res.status(400).json({ error: 'Array of categories required' });
     }
   });
 
-  // 5. BANNERS API
+  // 5. BANNERS API (Hero Box Promotional Offers)
+  const DEFAULT_INITIAL_BANNERS = [
+    {
+      id: 'b1',
+      title: 'AB FASHION HOGA AUR BHI EASY!',
+      subtitle: 'SHOP NOW • PAY LATER',
+      badge: 'FESTIVE & WEDDING SPECIAL',
+      offerText: 'NO COST EMI AVAILABLE • 2-3 MONTHS TENURE',
+      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&auto=format&fit=crop&q=80',
+      categoryId: 'shirts',
+      isEnabled: true,
+    },
+    {
+      id: 'b2',
+      title: 'NEW MEN’S WEAR ARRIVALS',
+      subtitle: 'PREMIUM QUALITY • DIRECT DUKAAN RATES',
+      badge: 'CHHUIKHADAN SPECIAL',
+      offerText: 'FLAT 20% TO 50% OFF ON ALL NEW ARRIVALS',
+      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80',
+      categoryId: 'jeans',
+      isEnabled: true,
+    },
+    {
+      id: 'b3',
+      title: 'FESTIVAL OF FASHION',
+      subtitle: 'ROYAL OXFORD SHIRTS & STRETCH TROUSERS',
+      badge: 'MEGA SALE IS LIVE',
+      offerText: 'BUY 2 GET 10% EXTRA DISCOUNT • COD AVAILABLE',
+      image: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1600&auto=format&fit=crop&q=80',
+      categoryId: 'trousers',
+      isEnabled: true,
+    },
+  ];
+
   app.get('/api/banners', (req, res) => {
-    const banners = readJsonFile<any[] | null>(BANNERS_FILE, null);
+    let banners = readJsonFile<any[] | null>(BANNERS_FILE, null);
+    if (!banners || !Array.isArray(banners)) {
+      banners = DEFAULT_INITIAL_BANNERS;
+      writeJsonFile(BANNERS_FILE, banners);
+    }
     res.json({ banners });
   });
 
@@ -860,10 +1136,20 @@ http://localhost:3000/admin`;
     const { banners } = req.body;
     if (Array.isArray(banners)) {
       writeJsonFile(BANNERS_FILE, banners);
-      res.json({ success: true });
+      broadcastRealtimeUpdate('banners', banners);
+      res.json({ success: true, total: banners.length });
     } else {
       res.status(400).json({ error: 'Array of banners required' });
     }
+  });
+
+  app.delete('/api/banners/:id', (req, res) => {
+    const { id } = req.params;
+    let banners = readJsonFile<any[]>(BANNERS_FILE, DEFAULT_INITIAL_BANNERS);
+    banners = banners.filter((b) => b.id !== id);
+    writeJsonFile(BANNERS_FILE, banners);
+    broadcastRealtimeUpdate('banners', banners);
+    res.json({ success: true, remaining: banners.length });
   });
 
   // Vite middleware setup

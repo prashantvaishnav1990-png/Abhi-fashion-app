@@ -1,0 +1,32 @@
+[
+  {
+    "id": "b1",
+    "title": "AB FASHION HOGA AUR BHI EASY!",
+    "subtitle": "SHOP NOW • PAY LATER",
+    "badge": "FESTIVE & WEDDING SPECIAL",
+    "offerText": "NO COST EMI AVAILABLE • 2-3 MONTHS TENURE",
+    "image": "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&auto=format&fit=crop&q=80",
+    "categoryId": "shirts",
+    "isEnabled": true
+  },
+  {
+    "id": "b2",
+    "title": "NEW MEN’S WEAR ARRIVALS",
+    "subtitle": "PREMIUM QUALITY • DIRECT DUKAAN RATES",
+    "badge": "CHHUIKHADAN SPECIAL",
+    "offerText": "FLAT 20% TO 50% OFF ON ALL NEW ARRIVALS",
+    "image": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80",
+    "categoryId": "jeans",
+    "isEnabled": true
+  },
+  {
+    "id": "b3",
+    "title": "FESTIVAL OF FASHION",
+    "subtitle": "ROYAL OXFORD SHIRTS & STRETCH TROUSERS",
+    "badge": "MEGA SALE IS LIVE",
+    "offerText": "BUY 2 GET 10% EXTRA DISCOUNT • COD AVAILABLE",
+    "image": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1600&auto=format&fit=crop&q=80",
+    "categoryId": "trousers",
+    "isEnabled": true
+  }
+]

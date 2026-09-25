@@ -59,7 +59,76 @@ export function subscribeToNewOrders(listener: NewOrderListener): () => void {
   };
 }
 
-// Background Server Sync
+// Background Server Sync & Real-Time Sync State
+let lastKnownVersions: Record<string, number> = {};
+
+async function syncProductsFromServer() {
+  try {
+    const res = await fetch('/api/products');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.products !== null && Array.isArray(data.products)) {
+      const currentLocal = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      const newJson = JSON.stringify(data.products);
+      if (currentLocal !== newJson) {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, newJson);
+        notifyListeners();
+      }
+    } else {
+      const local = StoreService.getProducts();
+      fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: local }),
+      }).catch(() => {});
+    }
+  } catch {
+    // Quiet fail on network hiccups
+  }
+}
+
+async function syncBannersFromServer() {
+  try {
+    const res = await fetch('/api/banners');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.banners !== null && Array.isArray(data.banners)) {
+      const currentLocal = localStorage.getItem(STORAGE_KEYS.BANNERS);
+      const newJson = JSON.stringify(data.banners);
+      if (currentLocal !== newJson) {
+        localStorage.setItem(STORAGE_KEYS.BANNERS, newJson);
+        notifyListeners();
+      }
+    }
+  } catch {
+    // Quiet fail
+  }
+}
+
+async function syncCategoriesFromServer() {
+  try {
+    const res = await fetch('/api/categories');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && Array.isArray(data.categories)) {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+      notifyListeners();
+    }
+  } catch {}
+}
+
+async function syncSettingsFromServer() {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.settings && typeof data.settings === 'object') {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
+      notifyListeners();
+    }
+  } catch {}
+}
+
 async function syncOrdersFromServer() {
   try {
     const res = await fetch('/api/orders');
@@ -125,12 +194,121 @@ async function syncOrdersFromServer() {
   }
 }
 
-// Start polling in browser
+// Check versions on server for fast continuous sync
+async function checkVersionsFromServer() {
+  try {
+    const res = await fetch('/api/sync/versions');
+    if (!res.ok) return;
+    const { versions } = await res.json();
+    if (!versions) return;
+
+    if (lastKnownVersions.products && versions.products !== lastKnownVersions.products) {
+      syncProductsFromServer();
+    }
+    if (lastKnownVersions.banners && versions.banners !== lastKnownVersions.banners) {
+      syncBannersFromServer();
+    }
+    if (lastKnownVersions.categories && versions.categories !== lastKnownVersions.categories) {
+      syncCategoriesFromServer();
+    }
+    if (lastKnownVersions.settings && versions.settings !== lastKnownVersions.settings) {
+      syncSettingsFromServer();
+    }
+    if (lastKnownVersions.orders && versions.orders !== lastKnownVersions.orders) {
+      syncOrdersFromServer();
+    }
+    lastKnownVersions = versions;
+  } catch {}
+}
+
+// Real-Time SSE Listener
+function initRealtimeSync() {
+  if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+
+  try {
+    const es = new EventSource('/api/sync/events');
+
+    es.addEventListener('connected', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.versions) lastKnownVersions = payload.versions;
+      } catch {}
+    });
+
+    es.addEventListener('products', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.data && Array.isArray(payload.data)) {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(payload.data));
+          notifyListeners();
+        } else {
+          syncProductsFromServer();
+        }
+      } catch {
+        syncProductsFromServer();
+      }
+    });
+
+    es.addEventListener('banners', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.data && Array.isArray(payload.data)) {
+          localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(payload.data));
+          notifyListeners();
+        } else {
+          syncBannersFromServer();
+        }
+      } catch {
+        syncBannersFromServer();
+      }
+    });
+
+    es.addEventListener('categories', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.data && Array.isArray(payload.data)) {
+          localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(payload.data));
+          notifyListeners();
+        }
+      } catch {}
+    });
+
+    es.addEventListener('settings', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.data) {
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(payload.data));
+          notifyListeners();
+        }
+      } catch {}
+    });
+
+    es.addEventListener('orders', () => {
+      syncOrdersFromServer();
+    });
+
+    es.onerror = () => {
+      es.close();
+      // Auto-reconnect after 3 seconds
+      setTimeout(initRealtimeSync, 3000);
+    };
+  } catch {
+    setTimeout(initRealtimeSync, 5000);
+  }
+}
+
+// Start real-time sync & polling in browser
 if (typeof window !== 'undefined') {
   setTimeout(() => {
+    syncProductsFromServer();
+    syncBannersFromServer();
     syncOrdersFromServer();
+    initRealtimeSync();
+
+    // Fast polling fallback (every 2.5s) to guarantee instant reflection even if SSE drops
+    setInterval(checkVersionsFromServer, 2500);
     setInterval(syncOrdersFromServer, 3500);
-  }, 1000);
+  }, 400);
 }
 
 export const StoreService = {
@@ -142,7 +320,11 @@ export const StoreService = {
         localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
         return INITIAL_PRODUCTS;
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return INITIAL_PRODUCTS;
     } catch {
       return INITIAL_PRODUCTS;
     }
@@ -162,12 +344,47 @@ export const StoreService = {
     }
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     notifyListeners();
+
+    // Sync to server database
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products }),
+    }).catch(() => {});
   },
 
   deleteProduct(id: string): void {
     const products = this.getProducts().filter((p) => p.id !== id);
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     notifyListeners();
+
+    // Sync deletion to server database
+    fetch(`/api/products/${id}`, { method: 'DELETE' }).catch(() => {});
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products }),
+    }).catch(() => {});
+  },
+
+  // Delete all initial sample products directly from app screen
+  deleteSampleProducts(): number {
+    const initialIds = new Set(INITIAL_PRODUCTS.map((p) => p.id));
+    const current = this.getProducts();
+    const filtered = current.filter((p) => !initialIds.has(p.id) && !p.id.startsWith('prod-sample'));
+    const deletedCount = current.length - filtered.length;
+
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+    notifyListeners();
+
+    // Sync remaining products to server database
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: filtered }),
+    }).catch(() => {});
+
+    return deletedCount;
   },
 
   // CATEGORIES
@@ -194,15 +411,27 @@ export const StoreService = {
     }
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     notifyListeners();
+
+    fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    }).catch(() => {});
   },
 
   deleteCategory(id: string): void {
     const categories = this.getCategories().filter((c) => c.id !== id);
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     notifyListeners();
+
+    fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    }).catch(() => {});
   },
 
-  // BANNERS
+  // BANNERS (Hero Box Promotional Offers)
   getBanners(): Banner[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.BANNERS);
@@ -226,12 +455,27 @@ export const StoreService = {
     }
     localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
     notifyListeners();
+
+    // Instant real-time broadcast to all customers across all devices
+    fetch('/api/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ banners }),
+    }).catch(() => {});
   },
 
   deleteBanner(id: string): void {
     const banners = this.getBanners().filter((b) => b.id !== id);
     localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
     notifyListeners();
+
+    // Instant deletion broadcast to all customers
+    fetch(`/api/banners/${id}`, { method: 'DELETE' }).catch(() => {});
+    fetch('/api/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ banners }),
+    }).catch(() => {});
   },
 
   // SETTINGS
@@ -258,6 +502,12 @@ export const StoreService = {
   saveSettings(settings: StoreSettings): void {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     notifyListeners();
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    }).catch(() => {});
   },
 
   // ORDERS
@@ -429,6 +679,18 @@ export const StoreService = {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
     localStorage.removeItem(STORAGE_KEYS.ORDERS);
     notifyListeners();
+
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: INITIAL_PRODUCTS }),
+    }).catch(() => {});
+
+    fetch('/api/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ banners: INITIAL_BANNERS }),
+    }).catch(() => {});
   },
 
   // ADMIN AUTHENTICATION

@@ -56,6 +56,22 @@ export interface CustomerAddress {
   state: string;
   pincode: string;
   upiId?: string;
+  landmark?: string;
+}
+
+export interface CustomerProfile {
+  mobile: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  landmark?: string;
+  upiId?: string;
+  cart?: CartItem[];
+  wishlist?: string[];
+  createdAt?: string;
+  lastLoginAt?: string;
 }
 
 export interface OrderItem {

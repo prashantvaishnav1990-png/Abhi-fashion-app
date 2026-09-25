@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   ShieldCheck,
@@ -10,14 +10,17 @@ import {
   Truck,
   ArrowRight,
   Info,
+  User,
 } from 'lucide-react';
-import { CartItem, CustomerAddress, Order, PaymentMethod, StoreSettings } from '../types';
+import { CartItem, CustomerAddress, CustomerProfile, Order, PaymentMethod, StoreSettings } from '../types';
+import { CustomerService } from '../services/customerService';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
   settings: StoreSettings;
+  currentCustomer?: CustomerProfile | null;
   onOrderSuccess: (order: Order) => void;
   onCreateOrder: (payload: {
     customer: CustomerAddress;
@@ -38,19 +41,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   items,
   settings,
+  currentCustomer,
   onOrderSuccess,
   onCreateOrder,
 }) => {
   if (!isOpen || items.length === 0) return null;
 
-  const [formData, setFormData] = useState<CustomerAddress>({
-    name: '',
-    mobile: '',
-    address: '',
-    city: 'Chhuikhadan',
-    state: 'Chhattisgarh',
-    pincode: '491885',
-  });
+  const [formData, setFormData] = useState<CustomerAddress>(() => ({
+    name: currentCustomer?.name || '',
+    mobile: currentCustomer?.mobile || '',
+    address: currentCustomer?.address || '',
+    city: currentCustomer?.city || 'Chhuikhadan',
+    state: currentCustomer?.state || 'Chhattisgarh',
+    pincode: currentCustomer?.pincode || '491885',
+    upiId: currentCustomer?.upiId || '',
+  }));
+
+  useEffect(() => {
+    if (currentCustomer) {
+      setFormData((prev) => ({
+        ...prev,
+        name: currentCustomer.name || prev.name,
+        mobile: currentCustomer.mobile || prev.mobile,
+        address: currentCustomer.address || prev.address,
+        city: currentCustomer.city || prev.city,
+        state: currentCustomer.state || prev.state,
+        pincode: currentCustomer.pincode || prev.pincode,
+        upiId: currentCustomer.upiId || prev.upiId,
+      }));
+      if (currentCustomer.upiId) {
+        setUpiId(currentCustomer.upiId);
+      }
+    }
+  }, [currentCustomer, isOpen]);
 
   const [orderNotes, setOrderNotes] = useState('');
   const [upiId, setUpiId] = useState('');
@@ -170,6 +193,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         notes: orderNotes.trim() || undefined,
         emiDetails,
       });
+
+      // Save customer profile and delivery address to server
+      CustomerService.syncCustomer({
+        mobile: cleanMobile,
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        pincode: formData.pincode.trim(),
+        upiId: isEmi ? cleanUpi : (cleanUpi || undefined),
+      }).catch(() => {});
 
       setIsProcessing(false);
       onOrderSuccess(createdOrder);

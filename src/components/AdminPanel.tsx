@@ -53,6 +53,7 @@ import {
   Product,
   StoreSettings,
 } from '../types';
+import { StoreService } from '../services/storeStorage';
 import { NotificationService, NotificationStatus } from '../services/notificationService';
 import { getColorHex, getHdImageUrl, POPULAR_COLORS } from '../utils/productHelpers';
 import { HDImageLightbox } from './HDImageLightbox';
@@ -621,13 +622,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h2>
               <p className="text-xs text-slate-400">Add, edit prices, stock quantities & images</p>
             </div>
-            <button
-              onClick={handleOpenAddProduct}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Product</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = window.confirm(
+                    'Kya aap sabhi sample/demo products ko store se delete karna chahte hain? Isse aapki product list clean ho jayegi.'
+                  );
+                  if (ok) {
+                    const count = StoreService.deleteSampleProducts();
+                    alert(`✅ ${count} Sample products safalta-purvak delete ho gaye.`);
+                  }
+                }}
+                className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span>Delete Sample Products (सैंपल हटाएं)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = window.confirm('Kya aap sample products ko firse store par restore karna chahte hain?');
+                  if (ok) {
+                    StoreService.resetDatabase();
+                    alert('✅ Sample products safalta-purvak restore ho gaye hain.');
+                  }
+                }}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4 text-amber-400" />
+                <span>Restore Sample Products</span>
+              </button>
+
+              <button
+                onClick={handleOpenAddProduct}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Product</span>
+              </button>
+            </div>
           </div>
 
           {/* Products List Table / Cards */}
