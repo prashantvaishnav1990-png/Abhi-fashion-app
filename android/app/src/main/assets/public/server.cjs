@@ -350,7 +350,8 @@ async function sendWhatsAppNotification(phone, message, cfg) {
 }
 async function startServer() {
   const app = (0, import_express.default)();
-  app.use(import_express.default.json());
+  app.use(import_express.default.json({ limit: "50mb" }));
+  app.use(import_express.default.urlencoded({ extended: true, limit: "50mb" }));
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
@@ -473,35 +474,45 @@ async function startServer() {
       sms: null,
       whatsapp: null
     };
+    const isEmi = order.paymentMethod === "emi" || order.paymentMethod === "upi_mandate" || !!order.emiDetails;
+    const upiId = order.emiDetails?.mandateUpiId || order.customer?.upiId;
+    const emiSummary = isEmi && upiId ? ` [EMI: \u20B9${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo \u2022 UPI: ${upiId}]` : "";
     if (cfg.enablePush) {
       results.push = await sendWebPushNotification({
-        title: `\u{1F6CD}\uFE0F Naya Order: ${order.orderNumber} (\u20B9${order.totalAmount})`,
-        body: `Customer: ${order.customer?.name} (${order.customer?.city || "Chhuikhadan"})
+        title: isEmi ? `\u26A1 Naya EMI Order: #${order.orderNumber} (\u20B9${order.totalAmount})` : `\u{1F6CD}\uFE0F Naya Order: #${order.orderNumber} (\u20B9${order.totalAmount})`,
+        body: isEmi && upiId ? `Customer: ${order.customer?.name} \u2022 UPI: ${upiId}
+EMI: \u20B9${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo (${order.emiDetails?.tenure || "3 Mo."})` : `Customer: ${order.customer?.name} (${order.customer?.city || "Chhuikhadan"})
 Items: ${itemsSummary}`,
         url: `/?tab=admin&orderId=${order.id}`,
         orderId: order.id
       });
     }
     if (cfg.enableSms && cfg.ownerPhone) {
-      const smsText = `ABHI FASHION: Naya Order mila! #${order.orderNumber}, Rs.${order.totalAmount}, Customer: ${order.customer?.name} (+91${order.customer?.mobile}), ${order.customer?.city}. Check app now!`;
+      const smsText = `ABHI FASHION: Naya Order! #${order.orderNumber}, Rs.${order.totalAmount}, Customer: ${order.customer?.name} (+91${order.customer?.mobile}), ${order.customer?.city}.${emiSummary} Check app!`;
       results.sms = await sendSmsNotification(cfg.ownerPhone, smsText, cfg);
     }
     if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
       const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
+      const emiWaBlock = isEmi ? `
+\u26A1 *EASY EMI ORDER DETAILS:*
+\u2022 *Customer UPI ID:* \`${upiId || "Check app"}\` \u{1F448} (Copy to UPI App)
+\u2022 *Tenure:* ${order.emiDetails?.tenure || "3 Months"}
+\u2022 *Monthly Installment:* \u20B9${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/month
+\u2022 *Action:* Apne UPI App se is UPI ID par request/mandate send karein.` : "";
       const waText = `\u{1F6CD}\uFE0F *NEW ORDER ALERT - ABHI FASHION*
 ---------------------------------------
 *Order ID:* ${order.orderNumber}
 *Total:* \u20B9${order.totalAmount} (${order.paymentMethod?.toUpperCase()} - ${order.paymentStatus})
 *Customer:* ${order.customer?.name}
 *Mobile:* +91 ${order.customer?.mobile}
-*Address:* ${order.customer?.address}, ${order.customer?.city}
+*Address:* ${order.customer?.address}, ${order.customer?.city}${emiWaBlock}
 
 *Items:*
 ${(order.items || []).map(
         (it, i) => `${i + 1}. *${it.productName}* (${it.selectedSize}) x${it.quantity} = \u20B9${it.totalPrice}`
       ).join("\n")}
 ---------------------------------------
-Kripya order confirm karke packing shuru karein!`;
+Kripya order verify karke packing shuru karein!`;
       results.whatsapp = await sendWhatsAppNotification(waPhone, waText, cfg);
     }
     res.json({
@@ -530,6 +541,70 @@ Kripya order confirm karke packing shuru karein!`;
       console.error(`Failed to write ${filePath}:`, err);
     }
   }
+  let sseClients = [];
+  const currentVersions = {
+    products: Date.now(),
+    banners: Date.now(),
+    categories: Date.now(),
+    settings: Date.now(),
+    orders: Date.now()
+  };
+  function broadcastRealtimeUpdate(type, data) {
+    currentVersions[type] = Date.now();
+    const message = JSON.stringify({
+      type,
+      data,
+      timestamp: currentVersions[type],
+      versions: currentVersions
+    });
+    sseClients = sseClients.filter((client) => {
+      try {
+        client.write(`event: ${type}
+data: ${message}
+
+`);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+  app.get("/api/sync/events", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+    res.write(
+      `event: connected
+data: ${JSON.stringify({
+        status: "connected",
+        versions: currentVersions,
+        timestamp: Date.now()
+      })}
+
+`
+    );
+    sseClients.push(res);
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(": keepalive\n\n");
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 15e3);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      sseClients = sseClients.filter((c) => c !== res);
+    });
+  });
+  app.get("/api/sync/versions", (req, res) => {
+    res.json({
+      versions: currentVersions,
+      connectedDevices: sseClients.length,
+      serverTime: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  });
   app.get("/api/orders", (req, res) => {
     const orders = readJsonFile(ORDERS_FILE, []);
     res.json({ orders });
@@ -588,11 +663,11 @@ Items: ${itemsSummary}`;
       if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
         const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
         const emiSection = isEmiOrder ? `
-\u26A1 *EMI / COLLECT APP MANDATE DETAILS:*
-\u2022 *Customer UPI ID:* \`${customerUpi || "Not entered"}\`
+\u26A1 *EASY EMI ORDER DETAILS:*
+\u2022 *Customer UPI ID:* \`${customerUpi || "Not entered"}\` \u{1F448} (Copy to UPI App)
 \u2022 *Tenure:* ${newOrder.emiDetails?.tenure || "3 Months"}
 \u2022 *Monthly Installment:* \u20B9${newOrder.emiDetails?.monthlyInstallment || Math.round(newOrder.totalAmount / 3)}/month
-\u2022 *Mandate Action:* Collect App open karein -> New Mandate -> Customer UPI ID (${customerUpi}) paste karke request bhejein!
+\u2022 *Action:* Apne UPI App (PhonePe/GPay/Paytm) se is UPI ID (${customerUpi}) par mandate/payment request send karein!
 ---------------------------------------` : "";
         const waText = `\u{1F6CD}\uFE0F *NEW ORDER ALERT - ABHI FASHION*
 ---------------------------------------
@@ -646,10 +721,144 @@ http://localhost:3000/admin`;
     const { products } = req.body;
     if (Array.isArray(products)) {
       writeJsonFile(PRODUCTS_FILE, products);
+      broadcastRealtimeUpdate("products", products);
       res.json({ success: true, total: products.length });
     } else {
       res.status(400).json({ error: "Array of products required" });
     }
+  });
+  app.delete("/api/products/:id", (req, res) => {
+    const { id } = req.params;
+    let products = readJsonFile(PRODUCTS_FILE, []);
+    products = products.filter((p) => p.id !== id);
+    writeJsonFile(PRODUCTS_FILE, products);
+    broadcastRealtimeUpdate("products", products);
+    res.json({ success: true, remaining: products.length });
+  });
+  const CUSTOMERS_FILE = import_path.default.join(DATA_DIR, "customers.json");
+  app.post("/api/customer/login", (req, res) => {
+    const { mobile, name } = req.body;
+    if (!mobile) {
+      res.status(400).json({ error: "Mobile number is required" });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, "").slice(-10);
+    if (cleanMobile.length !== 10) {
+      res.status(400).json({ error: "Please provide a valid 10-digit mobile number" });
+      return;
+    }
+    const customers = readJsonFile(CUSTOMERS_FILE, []);
+    let customer = customers.find((c) => c.mobile === cleanMobile);
+    if (customer) {
+      if (name && name.trim()) {
+        customer.name = name.trim();
+      }
+      customer.lastLoginAt = (/* @__PURE__ */ new Date()).toISOString();
+    } else {
+      customer = {
+        mobile: cleanMobile,
+        name: name && name.trim() || "Guest Customer",
+        address: "",
+        city: "Chhuikhadan",
+        state: "Chhattisgarh",
+        pincode: "491885",
+        landmark: "",
+        upiId: "",
+        cart: [],
+        wishlist: [],
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        lastLoginAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      customers.push(customer);
+    }
+    writeJsonFile(CUSTOMERS_FILE, customers);
+    const orders = readJsonFile(ORDERS_FILE, []);
+    const customerOrders = orders.filter((o) => {
+      const orderMob = String(o.customer?.mobile || "").replace(/\D/g, "").slice(-10);
+      return orderMob === cleanMobile;
+    });
+    res.json({
+      success: true,
+      customer,
+      orders: customerOrders
+    });
+  });
+  app.get("/api/customer/profile", (req, res) => {
+    const mobile = req.query.mobile;
+    if (!mobile) {
+      res.status(400).json({ error: "Mobile query param is required" });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, "").slice(-10);
+    const customers = readJsonFile(CUSTOMERS_FILE, []);
+    const customer = customers.find((c) => c.mobile === cleanMobile) || null;
+    const orders = readJsonFile(ORDERS_FILE, []);
+    const customerOrders = orders.filter((o) => {
+      const orderMob = String(o.customer?.mobile || "").replace(/\D/g, "").slice(-10);
+      return orderMob === cleanMobile;
+    });
+    res.json({
+      success: true,
+      customer,
+      orders: customerOrders
+    });
+  });
+  app.post("/api/customer/sync", (req, res) => {
+    const { mobile, name, address, city, state, pincode, landmark, upiId, cart, wishlist } = req.body;
+    if (!mobile) {
+      res.status(400).json({ error: "Mobile number is required" });
+      return;
+    }
+    const cleanMobile = String(mobile).replace(/\D/g, "").slice(-10);
+    const customers = readJsonFile(CUSTOMERS_FILE, []);
+    let customer = customers.find((c) => c.mobile === cleanMobile);
+    if (customer) {
+      if (name !== void 0) customer.name = name;
+      if (address !== void 0) customer.address = address;
+      if (city !== void 0) customer.city = city;
+      if (state !== void 0) customer.state = state;
+      if (pincode !== void 0) customer.pincode = pincode;
+      if (landmark !== void 0) customer.landmark = landmark;
+      if (upiId !== void 0) customer.upiId = upiId;
+      if (cart !== void 0) customer.cart = cart;
+      if (wishlist !== void 0) customer.wishlist = wishlist;
+      customer.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    } else {
+      customer = {
+        mobile: cleanMobile,
+        name: name || "Valued Customer",
+        address: address || "",
+        city: city || "Chhuikhadan",
+        state: state || "Chhattisgarh",
+        pincode: pincode || "491885",
+        landmark: landmark || "",
+        upiId: upiId || "",
+        cart: cart || [],
+        wishlist: wishlist || [],
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        lastLoginAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      customers.push(customer);
+    }
+    writeJsonFile(CUSTOMERS_FILE, customers);
+    res.json({ success: true, customer });
+  });
+  app.get("/api/customers", (req, res) => {
+    const customers = readJsonFile(CUSTOMERS_FILE, []);
+    const orders = readJsonFile(ORDERS_FILE, []);
+    const enriched = customers.map((c) => {
+      const custOrders = orders.filter((o) => {
+        const orderMob = String(o.customer?.mobile || "").replace(/\D/g, "").slice(-10);
+        return orderMob === c.mobile;
+      });
+      const totalSpent = custOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      return {
+        ...c,
+        ordersCount: custOrders.length,
+        totalSpent
+      };
+    });
+    res.json({ customers: enriched });
   });
   app.get("/api/settings", (req, res) => {
     const settings = readJsonFile(SETTINGS_FILE, null);
@@ -659,6 +868,7 @@ http://localhost:3000/admin`;
     const { settings } = req.body;
     if (settings && typeof settings === "object") {
       writeJsonFile(SETTINGS_FILE, settings);
+      broadcastRealtimeUpdate("settings", settings);
       res.json({ success: true });
     } else {
       res.status(400).json({ error: "Settings object required" });
@@ -672,23 +882,69 @@ http://localhost:3000/admin`;
     const { categories } = req.body;
     if (Array.isArray(categories)) {
       writeJsonFile(CATEGORIES_FILE, categories);
+      broadcastRealtimeUpdate("categories", categories);
       res.json({ success: true });
     } else {
       res.status(400).json({ error: "Array of categories required" });
     }
   });
+  const DEFAULT_INITIAL_BANNERS = [
+    {
+      id: "b1",
+      title: "AB FASHION HOGA AUR BHI EASY!",
+      subtitle: "SHOP NOW \u2022 PAY LATER",
+      badge: "FESTIVE & WEDDING SPECIAL",
+      offerText: "NO COST EMI AVAILABLE \u2022 2-3 MONTHS TENURE",
+      image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&auto=format&fit=crop&q=80",
+      categoryId: "shirts",
+      isEnabled: true
+    },
+    {
+      id: "b2",
+      title: "NEW MEN\u2019S WEAR ARRIVALS",
+      subtitle: "PREMIUM QUALITY \u2022 DIRECT DUKAAN RATES",
+      badge: "CHHUIKHADAN SPECIAL",
+      offerText: "FLAT 20% TO 50% OFF ON ALL NEW ARRIVALS",
+      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80",
+      categoryId: "jeans",
+      isEnabled: true
+    },
+    {
+      id: "b3",
+      title: "FESTIVAL OF FASHION",
+      subtitle: "ROYAL OXFORD SHIRTS & STRETCH TROUSERS",
+      badge: "MEGA SALE IS LIVE",
+      offerText: "BUY 2 GET 10% EXTRA DISCOUNT \u2022 COD AVAILABLE",
+      image: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1600&auto=format&fit=crop&q=80",
+      categoryId: "trousers",
+      isEnabled: true
+    }
+  ];
   app.get("/api/banners", (req, res) => {
-    const banners = readJsonFile(BANNERS_FILE, null);
+    let banners = readJsonFile(BANNERS_FILE, null);
+    if (!banners || !Array.isArray(banners)) {
+      banners = DEFAULT_INITIAL_BANNERS;
+      writeJsonFile(BANNERS_FILE, banners);
+    }
     res.json({ banners });
   });
   app.post("/api/banners", (req, res) => {
     const { banners } = req.body;
     if (Array.isArray(banners)) {
       writeJsonFile(BANNERS_FILE, banners);
-      res.json({ success: true });
+      broadcastRealtimeUpdate("banners", banners);
+      res.json({ success: true, total: banners.length });
     } else {
       res.status(400).json({ error: "Array of banners required" });
     }
+  });
+  app.delete("/api/banners/:id", (req, res) => {
+    const { id } = req.params;
+    let banners = readJsonFile(BANNERS_FILE, DEFAULT_INITIAL_BANNERS);
+    banners = banners.filter((b) => b.id !== id);
+    writeJsonFile(BANNERS_FILE, banners);
+    broadcastRealtimeUpdate("banners", banners);
+    res.json({ success: true, remaining: banners.length });
   });
   if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({

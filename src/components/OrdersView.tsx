@@ -312,19 +312,19 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                   ))}
                 </div>
 
-                {/* Collect App Mandate Details if EMI */}
+                {/* Easy EMI Mandate Details */}
                 {(order.emiDetails || order.customer.upiId) && (
                   <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <span className="font-bold text-emerald-300">
-                        ⚡ Collect App UPI Mandate: {order.emiDetails?.tenure || '3 Months'} • ₹{order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo
+                        ⚡ Easy EMI (किस्त): {order.emiDetails?.tenure || '3 Months'} • ₹{order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo
                       </span>
                       <p className="text-[11px] text-slate-300 mt-0.5">
                         Registered UPI ID: <span className="font-mono font-bold text-amber-300">{order.emiDetails?.mandateUpiId || order.customer.upiId}</span>
                       </p>
                     </div>
                     <span className="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
-                      Mandate Pending Approval
+                      EMI Pending Approval
                     </span>
                   </div>
                 )}

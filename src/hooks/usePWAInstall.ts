@@ -11,11 +11,21 @@ export function usePWAInstall() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Detect standalone mode (already installed on home screen)
+    // Detect standalone mode (already installed on home screen or native Capacitor APK)
+    const isCapacitorNative =
+      typeof (window as any).Capacitor !== 'undefined' ||
+      (window as any).__CAPACITOR__ !== undefined;
+
     const isStandalone =
+      isCapacitorNative ||
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsInstalled(isStandalone);
+
+    if (isStandalone) {
+      setIsInstalled(true);
+      return;
+    }
+    setIsInstalled(false);
 
     // Detect iOS devices
     const userAgent = window.navigator.userAgent.toLowerCase();

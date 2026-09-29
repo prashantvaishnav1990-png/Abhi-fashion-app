@@ -236,7 +236,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
                     <span className="flex items-center gap-1 font-semibold">
                       <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-                      Collect App EMI Eligible:
+                      Easy EMI Eligible:
                     </span>
                     <span className="font-bold text-white">₹{Math.round(grandTotal / 3)}/mo (Max 3 Mo.)</span>
                   </div>

@@ -41,7 +41,6 @@ import {
 import { StoreService, subscribeToStore } from './services/storeStorage';
 import { CustomerService } from './services/customerService';
 import { Header } from './components/Header';
-import { BottomNav } from './components/BottomNav';
 import { HeroSlider } from './components/HeroSlider';
 import { CategoryChips } from './components/CategoryChips';
 import { ProductCard } from './components/ProductCard';
@@ -374,35 +373,7 @@ export default function App() {
   // -------------------------------------------------------------
   if (appMode === 'admin') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-        {/* Top App Switcher Bar */}
-        <div className="bg-slate-900 border-b border-slate-800/90 py-1.5 px-3 sm:px-4 flex items-center justify-between text-xs sticky top-0 z-50">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">
-              Active App:
-            </span>
-            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-800">
-              <button
-                onClick={() => handleSwitchMode('customer')}
-                className="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition cursor-pointer"
-              >
-                🛍️ Customer App (ग्राहक)
-              </button>
-              <button className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 text-slate-950 shadow-xs cursor-default">
-                🛡️ Admin App (दुकानदार)
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={() => handleSwitchMode('customer')}
-            className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <span>Open Customer Storefront</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pt-[env(safe-area-inset-top,0px)]">
         <AdminApp onSwitchToCustomerApp={() => handleSwitchMode('customer')} />
       </div>
     );
@@ -412,42 +383,14 @@ export default function App() {
   // DEDICATED CUSTOMER APP MODE (For Shoppers & Buyers)
   // -------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#0A0F1D] text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950 pb-20 md:pb-0">
-      {/* Top App Mode Switcher Banner */}
-      <div className="bg-slate-900/95 border-b border-slate-800/90 py-1.5 px-3 sm:px-4 flex items-center justify-between text-xs backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">
-            Active App:
-          </span>
-          <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-800">
-            <button className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 text-slate-950 shadow-xs cursor-default">
-              🛍️ Customer App (ग्राहक)
-            </button>
-            <button
-              onClick={() => handleSwitchMode('admin')}
-              className="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition cursor-pointer"
-            >
-              🛡️ Admin App (दुकानदार)
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={() => handleSwitchMode('admin')}
-          className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-        >
-          <span>Store Owner? Open Admin App</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* PWA In-App Install Prompt Banner */}
+    <div className="min-h-screen bg-[#0A0F1D] text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950 pb-8">
+      {/* PWA In-App Install Prompt Banner (Auto-hidden in native APK) */}
       <PWAInstallBanner />
 
       {/* Offline Status Warning */}
       <OfflineIndicator />
 
-      {/* Header */}
+      {/* Header with Relocated Top Navigation (Safely away from phone's back key) */}
       <Header
         settings={settings}
         cartCount={totalCartCount}
@@ -461,6 +404,13 @@ export default function App() {
         onOpenAdmin={() => handleSwitchMode('admin')}
         showAdminButton={false}
         activeView={activeTab}
+        onChangeTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'cart') {
+            setIsCartOpen(true);
+          }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         currentCustomer={customer}
         onOpenLogin={() => setIsLoginModalOpen(true)}
       />
@@ -882,19 +832,6 @@ export default function App() {
           <span className="text-slate-400">Progressive Web App (PWA) • Installable & Offline-Ready</span>
         </div>
       </footer>
-
-      {/* Mobile Sticky Bottom Navigation */}
-      <BottomNav
-        activeTab={activeTab}
-        onChangeTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'cart') {
-            setIsCartOpen(true);
-          }
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        cartCount={totalCartCount}
-      />
 
       {/* Customer Mobile Login Modal */}
       <CustomerLoginModal

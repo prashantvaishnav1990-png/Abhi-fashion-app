@@ -983,21 +983,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {/* Collect App UPI Mandate Box */}
                   {(o.emiDetails || o.customer.upiId || o.paymentMethod === 'emi' || o.paymentMethod === 'upi_mandate') && (
-                    <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <div className="mt-2.5 p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-xs flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-start gap-2">
-                        <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-emerald-300">
-                              Collect App UPI Mandate (EMI): {o.emiDetails?.tenure || '3 Months'} • ₹{o.emiDetails?.monthlyInstallment || Math.round(o.totalAmount / 3)}/mo
+                            <span className="font-bold text-amber-300">
+                              ⚡ Easy EMI Mandate (किस्त): {o.emiDetails?.tenure || '3 Months'} • ₹{o.emiDetails?.monthlyInstallment || Math.round(o.totalAmount / 3)}/mo
                             </span>
-                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
-                              Active
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-black border border-amber-500/30">
+                              EMI Active
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-slate-400 text-[11px]">Customer UPI ID (VPA):</span>
-                            <span className="font-mono font-black text-amber-300 text-xs bg-slate-950 px-2 py-0.5 rounded border border-slate-800 select-all">
+                            <span className="text-slate-400 text-[11px] font-semibold">Customer UPI ID (VPA):</span>
+                            <span className="font-mono font-black text-amber-300 text-xs bg-slate-950 px-2 py-0.5 rounded border border-amber-500/30 select-all">
                               {o.emiDetails?.mandateUpiId || o.customer.upiId || 'Not specified'}
                             </span>
                           </div>
@@ -1014,7 +1014,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               setCopiedUpiOrderId(o.id);
                               setTimeout(() => setCopiedUpiOrderId(null), 2500);
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                            className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                           >
                             {copiedUpiOrderId === o.id ? (
                               <>
@@ -1032,7 +1032,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         <a
                           href={`https://wa.me/91${o.customer.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(
-                            `Namaste ${o.customer.name}! ABHI FASHION se aapke order #${o.orderNumber} (₹${o.totalAmount}) ke EMI ke liye Collect App AutoPay Mandate request aapke UPI ID (${o.emiDetails?.mandateUpiId || o.customer.upiId}) par bhej di gayi hai. Kripya apne Google Pay/PhonePe/Paytm par use approve karein.`
+                            `Namaste ${o.customer.name}! ABHI FASHION se aapke order #${o.orderNumber} (₹${o.totalAmount}) ke Easy EMI ke liye mandate/payment request aapke UPI ID (${o.emiDetails?.mandateUpiId || o.customer.upiId}) par bhej di gayi hai. Kripya apne Google Pay/PhonePe/Paytm par use approve karein.`
                           )}`}
                           target="_blank"
                           rel="noreferrer"
@@ -1324,17 +1324,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </label>
 
-              {/* Collect App / UPI Mandate AutoPay Setting */}
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/30 space-y-3">
+              {/* Easy EMI / UPI Mandate AutoPay Setting */}
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/30 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-emerald-400" />
+                    <Clock className="w-4 h-4 text-amber-400" />
                     <div>
                       <span className="font-bold text-white block">
-                        Collect App / UPI Mandate AutoPay (किस्त पर कपड़े)
+                        Easy EMI / UPI Mandate AutoPay (किस्त पर कपड़े)
                       </span>
                       <span className="text-[10px] text-slate-400">
-                        NPCI UPI AutoPay / Collect App se monthly recurring mandate setup karein
+                        NPCI UPI AutoPay / Mandate se customer ke UPI par monthly recurring EMI setup karein
                       </span>
                     </div>
                   </div>
@@ -1347,7 +1347,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         isUpiMandateAvailable: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 text-emerald-400"
+                    className="w-4 h-4 text-amber-400"
                   />
                 </div>
 
@@ -1356,7 +1356,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                          Collect App / Merchant UPI ID (VPA)
+                          Store Owner / Merchant UPI ID (VPA)
                         </label>
                         <input
                           type="text"
@@ -1368,7 +1368,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             })
                           }
                           placeholder="e.g. 9826198421@paytm or abhifashion@upi"
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-emerald-400"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
                         />
                       </div>
 
@@ -1385,8 +1385,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               upiMandateProvider: e.target.value,
                             })
                           }
-                          placeholder="e.g. Collect App / UPI AutoPay"
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-hidden focus:border-emerald-400"
+                          placeholder="e.g. Easy EMI / UPI AutoPay"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-hidden focus:border-amber-400"
                         />
                       </div>
                     </div>
@@ -1407,7 +1407,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               emiMinAmount: Number(e.target.value) || 3000,
                             })
                           }
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-emerald-400"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
                         />
                         <span className="text-[10px] text-slate-400">Current: ₹3,000 minimum</span>
                       </div>
@@ -1424,7 +1424,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               emiTenures: [2, 3],
                             });
                           }}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-hidden focus:border-emerald-400"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-hidden focus:border-amber-400"
                         >
                           <option value={3}>3 Months (Max Allowed Capped)</option>
                         </select>
@@ -1432,8 +1432,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/20 text-[11px] text-emerald-300 leading-relaxed">
-                      💡 <strong>Collect App AutoPay Process:</strong> Customer order place karte waqt apna UPI ID daalega aur tenure (Maximum 3 mahine) chunega. Minimum order ₹3,000 hona zaroori hai. Aapke Collect App / UPI Merchant panel se customer ko AutoPay mandate request jayegi jise approve karne par monthly EMI auto-credit ho jayegi.
+                    <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[11px] text-amber-300 leading-relaxed">
+                      💡 <strong>Easy EMI Process:</strong> Customer order place karte waqt apna UPI ID daalega aur tenure (Maximum 3 mahine) chunega. Minimum order ₹3,000 hona zaroori hai. Admin orders list ya realtime notification se Customer ka UPI ID copy karke apne UPI App (PhonePe / GPay / Paytm / Merchant Mandate) se customer ko monthly request bhej sakta hai.
                     </div>
                   </div>
                 )}

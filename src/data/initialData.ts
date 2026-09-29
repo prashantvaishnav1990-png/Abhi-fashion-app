@@ -267,10 +267,10 @@ export const INITIAL_SETTINGS: StoreSettings = {
   adminPin: '1234',
   isCollectEmiAvailable: true,
   collectUpiId: '9826198421@okbizaxis',
-  collectAppName: 'Collect App / UPI AutoPay',
+  collectAppName: 'Easy EMI / UPI AutoPay',
   collectMerchantLink: 'https://collect.chat/upi',
   emiTenures: [2, 3],
   isUpiMandateAvailable: true,
   upiMandateVpa: '9826198421@okbizaxis',
-  upiMandateProvider: 'Collect App / UPI AutoPay',
+  upiMandateProvider: 'Easy EMI / UPI AutoPay',
 };

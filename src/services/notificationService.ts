@@ -325,11 +325,11 @@ export const NotificationService = {
     const upiId = order.emiDetails?.mandateUpiId || order.customer.upiId;
 
     const emiBlock = isEmi
-      ? `\n⚡ *EMI / COLLECT APP MANDATE:*
-• *Customer UPI ID:* \`${upiId || 'Provided at checkout'}\` 👈
+      ? `\n⚡ *EASY EMI ORDER (UPI MANDATE):*
+• *Customer UPI ID:* \`${upiId || 'Provided at checkout'}\` 👈 (Copy to UPI App)
 • *Tenure:* ${order.emiDetails?.tenure || '3 Months'}
 • *Monthly EMI:* ₹${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/month
-• *Next Step:* Collect App me Mandate bhejein.`
+• *Next Step:* Customer ke is UPI ID par monthly request/mandate send karein.`
       : '';
 
     const msg = `🛍️ *NEW ORDER - ${storeName}*

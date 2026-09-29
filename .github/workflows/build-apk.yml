@@ -129,7 +129,7 @@ jobs:
 
             2. **🛡️ Store Admin App (दुकानदार ऐप):**
                - **File:** `AbhiFashion-Admin.apk`
-               - **Use:** For Abhishek / Shop Owner to receive instant sound alerts for new orders, view Customer UPI IDs for Collect App Mandates, manage inventory, and update order statuses.
+               - **Use:** For Abhishek / Shop Owner to receive instant sound alerts for new orders, view Customer UPI IDs for Easy EMI Mandates, manage inventory, and update order statuses.
           files: |
             output-apk/AbhiFashion-Customer.apk
             output-apk/AbhiFashion-Admin.apk

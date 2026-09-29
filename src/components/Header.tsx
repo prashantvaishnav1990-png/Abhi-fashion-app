@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ShoppingBag, Shield, Sparkles, MapPin, Smartphone, User } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Sparkles, MapPin, Smartphone, User, Home, Grid, PackageCheck } from 'lucide-react';
 import { CustomerProfile, StoreSettings } from '../types';
 
 interface HeaderProps {
@@ -10,9 +10,17 @@ interface HeaderProps {
   onNavigateHome: () => void;
   onOpenAdmin?: () => void;
   showAdminButton?: boolean;
-  activeView: string;
+  activeView: 'home' | 'categories' | 'cart' | 'orders' | 'admin';
+  onChangeTab?: (tab: 'home' | 'categories' | 'cart' | 'orders') => void;
   currentCustomer?: CustomerProfile | null;
   onOpenLogin?: () => void;
+}
+
+interface NavTabItem {
+  id: 'home' | 'categories' | 'cart' | 'orders';
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,12 +32,21 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   showAdminButton = false,
   activeView,
+  onChangeTab,
   currentCustomer,
   onOpenLogin,
 }) => {
+  const navTabs: NavTabItem[] = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'categories', label: 'Categories', icon: Grid },
+    { id: 'cart', label: 'Bag', icon: ShoppingBag, badge: cartCount },
+    { id: 'orders', label: 'Orders', icon: PackageCheck },
+  ];
+
   return (
-    <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur-md border-b border-slate-800/80 shadow-md">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur-md border-b border-slate-800/80 shadow-lg pt-[env(safe-area-inset-top,0px)]">
+      {/* Top Header Row: Brand Logo & User Actions */}
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
         {/* Brand Logo & Name */}
         <button
           id="brand-logo-button"
@@ -137,6 +154,48 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Relocated App Navigation Bar (Moved from bottom to top, safely away from phone's back key) */}
+      {onChangeTab && (
+        <nav
+          id="main-app-nav-top"
+          aria-label="Store Navigation Bar"
+          className="border-t border-slate-800/90 px-2 py-1.5 bg-slate-950/80 backdrop-blur-md"
+        >
+          <div className="grid grid-cols-4 gap-1.5 max-w-xl mx-auto">
+            {navTabs.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-tab-${item.id}`}
+                  onClick={() => onChangeTab(item.id)}
+                  className={`flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1.5 sm:px-2 rounded-xl text-xs font-black transition cursor-pointer relative active:scale-95 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800/80'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <span className="truncate text-[11px] sm:text-xs">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span
+                      className={`text-[10px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shrink-0 ${
+                        isActive
+                          ? 'bg-slate-950 text-amber-400'
+                          : 'bg-rose-600 text-white'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </header>
   );
 };

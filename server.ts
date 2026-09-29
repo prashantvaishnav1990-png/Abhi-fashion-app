@@ -598,11 +598,19 @@ async function startServer() {
       whatsapp: null,
     };
 
+    const isEmi = order.paymentMethod === 'emi' || order.paymentMethod === 'upi_mandate' || !!order.emiDetails;
+    const upiId = order.emiDetails?.mandateUpiId || order.customer?.upiId;
+    const emiSummary = isEmi && upiId ? ` [EMI: ₹${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo • UPI: ${upiId}]` : '';
+
     // 1. Web Push Notification (Works even when app is closed!)
     if (cfg.enablePush) {
       results.push = await sendWebPushNotification({
-        title: `🛍️ Naya Order: ${order.orderNumber} (₹${order.totalAmount})`,
-        body: `Customer: ${order.customer?.name} (${order.customer?.city || 'Chhuikhadan'})\nItems: ${itemsSummary}`,
+        title: isEmi
+          ? `⚡ Naya EMI Order: #${order.orderNumber} (₹${order.totalAmount})`
+          : `🛍️ Naya Order: #${order.orderNumber} (₹${order.totalAmount})`,
+        body: isEmi && upiId
+          ? `Customer: ${order.customer?.name} • UPI: ${upiId}\nEMI: ₹${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo (${order.emiDetails?.tenure || '3 Mo.'})`
+          : `Customer: ${order.customer?.name} (${order.customer?.city || 'Chhuikhadan'})\nItems: ${itemsSummary}`,
         url: `/?tab=admin&orderId=${order.id}`,
         orderId: order.id,
       });
@@ -610,20 +618,28 @@ async function startServer() {
 
     // 2. SMS Notification to Owner
     if (cfg.enableSms && cfg.ownerPhone) {
-      const smsText = `ABHI FASHION: Naya Order mila! #${order.orderNumber}, Rs.${order.totalAmount}, Customer: ${order.customer?.name} (+91${order.customer?.mobile}), ${order.customer?.city}. Check app now!`;
+      const smsText = `ABHI FASHION: Naya Order! #${order.orderNumber}, Rs.${order.totalAmount}, Customer: ${order.customer?.name} (+91${order.customer?.mobile}), ${order.customer?.city}.${emiSummary} Check app!`;
       results.sms = await sendSmsNotification(cfg.ownerPhone, smsText, cfg);
     }
 
     // 3. WhatsApp Notification to Owner
     if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
       const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
+      const emiWaBlock = isEmi
+        ? `\n⚡ *EASY EMI ORDER DETAILS:*
+• *Customer UPI ID:* \`${upiId || 'Check app'}\` 👈 (Copy to UPI App)
+• *Tenure:* ${order.emiDetails?.tenure || '3 Months'}
+• *Monthly Installment:* ₹${order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/month
+• *Action:* Apne UPI App se is UPI ID par request/mandate send karein.`
+        : '';
+
       const waText = `🛍️ *NEW ORDER ALERT - ABHI FASHION*
 ---------------------------------------
 *Order ID:* ${order.orderNumber}
 *Total:* ₹${order.totalAmount} (${order.paymentMethod?.toUpperCase()} - ${order.paymentStatus})
 *Customer:* ${order.customer?.name}
 *Mobile:* +91 ${order.customer?.mobile}
-*Address:* ${order.customer?.address}, ${order.customer?.city}
+*Address:* ${order.customer?.address}, ${order.customer?.city}${emiWaBlock}
 
 *Items:*
 ${(order.items || [])
@@ -633,7 +649,7 @@ ${(order.items || [])
   )
   .join('\n')}
 ---------------------------------------
-Kripya order confirm karke packing shuru karein!`;
+Kripya order verify karke packing shuru karein!`;
 
       results.whatsapp = await sendWhatsAppNotification(waPhone, waText, cfg);
     }
@@ -822,11 +838,11 @@ Kripya order confirm karke packing shuru karein!`;
       if (cfg.enableWhatsApp && (cfg.ownerWhatsApp || cfg.ownerPhone)) {
         const waPhone = cfg.ownerWhatsApp || cfg.ownerPhone;
         const emiSection = isEmiOrder
-          ? `\n⚡ *EMI / COLLECT APP MANDATE DETAILS:*
-• *Customer UPI ID:* \`${customerUpi || 'Not entered'}\`
+          ? `\n⚡ *EASY EMI ORDER DETAILS:*
+• *Customer UPI ID:* \`${customerUpi || 'Not entered'}\` 👈 (Copy to UPI App)
 • *Tenure:* ${newOrder.emiDetails?.tenure || '3 Months'}
 • *Monthly Installment:* ₹${newOrder.emiDetails?.monthlyInstallment || Math.round(newOrder.totalAmount / 3)}/month
-• *Mandate Action:* Collect App open karein -> New Mandate -> Customer UPI ID (${customerUpi}) paste karke request bhejein!
+• *Action:* Apne UPI App (PhonePe/GPay/Paytm) se is UPI ID (${customerUpi}) par mandate/payment request send karein!
 ---------------------------------------`
           : '';
 

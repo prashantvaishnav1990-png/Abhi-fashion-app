@@ -203,7 +203,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                     )}
                   </div>
                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                    Collect App AutoPay (Max 3 Mo.)
+                    Easy EMI (Max 3 Mo.)
                   </span>
                 </div>
               </div>
@@ -387,14 +387,14 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               </button>
             </div>
 
-            {/* UPI Mandate EMI Callout Box */}
+            {/* Easy EMI Callout Box */}
             <div className="mb-4 p-3 rounded-2xl bg-amber-950/20 border border-amber-500/30 text-xs text-slate-300">
               <div className="flex items-center gap-2 text-amber-400 font-bold mb-1">
                 <CreditCard className="w-4 h-4" />
-                <span>UPI Mandate / Collect App EMI Available (किस्त पर कपड़े)</span>
+                <span>Easy EMI Available (किस्त पर कपड़े)</span>
               </div>
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                Collect App / UPI AutoPay ke zariye aap easy monthly installments (किस्त) par khareed sakte hain. Checkout par "UPI Mandate EMI" chunein!
+                Aap bina kisi jhanjhat ke easy monthly installments (किस्त) par khareed sakte hain. Checkout par "Easy EMI" chunein!
               </p>
             </div>
 
