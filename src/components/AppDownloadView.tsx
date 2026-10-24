@@ -120,6 +120,18 @@ export const AppDownloadView: React.FC<AppDownloadViewProps> = ({
               </button>
             )}
 
+            {/* Direct APK Download Button */}
+            {settings.appPublicUrl && (
+              <a
+                href={settings.appPublicUrl}
+                download="ABHI-FASHION.apk"
+                className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-slate-950" />
+                <span>📥 Direct Android APK Download Karein</span>
+              </a>
+            )}
+
             {/* Direct Open Web Store Button */}
             <button
               type="button"

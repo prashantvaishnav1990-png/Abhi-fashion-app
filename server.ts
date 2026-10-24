@@ -4,14 +4,19 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import webpush from 'web-push';
 import dotenv from 'dotenv';
+import QRCode from 'qrcode';
 
 dotenv.config();
 
 const PORT = 3000;
 const DATA_DIR = path.join(process.cwd(), 'data');
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 // -------------------------------------------------------------
@@ -426,6 +431,54 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // CORS Middleware for Web & Android APK (Capacitor WebView)
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
+  // Serve product uploads statically
+  app.use('/uploads', express.static(UPLOADS_DIR));
+
+  // Image Upload Endpoint (base64 image dataUrl or binary upload)
+  app.post('/api/upload', (req, res) => {
+    try {
+      const { dataUrl } = req.body;
+      if (!dataUrl || typeof dataUrl !== 'string') {
+        res.status(400).json({ error: 'dataUrl string required' });
+        return;
+      }
+
+      const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        res.status(400).json({ error: 'Invalid data URL' });
+        return;
+      }
+
+      const ext = matches[1].includes('png')
+        ? '.png'
+        : matches[1].includes('webp')
+        ? '.webp'
+        : '.jpg';
+      const cleanFileName = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
+      const filePath = path.join(UPLOADS_DIR, cleanFileName);
+      const buffer = Buffer.from(matches[2], 'base64');
+
+      fs.writeFileSync(filePath, buffer);
+      res.json({ success: true, url: `/uploads/${cleanFileName}` });
+    } catch (err: any) {
+      console.error('Image upload failed:', err);
+      res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+  });
+
   // API ROUTES -------------------------------------------------
 
   // Health check
@@ -439,6 +492,33 @@ async function startServer() {
         whatsapp: true,
       },
     });
+  });
+
+  // Direct QR Code Image Download for mobile devices & Android WebView
+  app.get('/api/poster-qr/download', async (req, res) => {
+    try {
+      const targetUrl =
+        (req.query.url as string) ||
+        'https://drive.google.com/uc?export=download&id=1Fu_2Oul0hGXBnLV8sweNZFTooibbFfjh';
+      const buffer = await QRCode.toBuffer(targetUrl, {
+        width: 1024,
+        margin: 2,
+        color: {
+          dark: '#0B132B',
+          light: '#FFFFFF',
+        },
+        errorCorrectionLevel: 'H',
+      });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="AbhiFashion-App-Download-QR.png"'
+      );
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(buffer);
+    } catch (err) {
+      res.status(500).send('Failed to generate QR');
+    }
   });
 
   // VAPID Public Key for client browser Push Subscription
@@ -913,6 +993,25 @@ http://localhost:3000/admin`;
     } else {
       res.status(400).json({ error: 'Array of products required' });
     }
+  });
+
+  // Single Product Upsert (Save or Update a single product reliably)
+  app.post('/api/products/upsert', (req, res) => {
+    const { product } = req.body;
+    if (!product || !product.id) {
+      res.status(400).json({ error: 'Valid product object with id required' });
+      return;
+    }
+    const products = readJsonFile<any[]>(PRODUCTS_FILE, []);
+    const idx = products.findIndex((p) => p.id === product.id);
+    if (idx >= 0) {
+      products[idx] = product;
+    } else {
+      products.unshift(product);
+    }
+    writeJsonFile(PRODUCTS_FILE, products);
+    broadcastRealtimeUpdate('products', products);
+    res.json({ success: true, product, total: products.length });
   });
 
   app.delete('/api/products/:id', (req, res) => {

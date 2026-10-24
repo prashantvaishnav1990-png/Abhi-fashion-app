@@ -87,6 +87,26 @@ export const INITIAL_BANNERS: Banner[] = [
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
+    id: 'prod-turtle-sando-01',
+    name: "Men's Turtle Energy Graphic Gym Vest / Sando",
+    category: 't-shirts',
+    mrp: 499,
+    sellingPrice: 299,
+    discountPercent: 40,
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    colors: ['Jet Black'],
+    stock: 25,
+    description: "Premium combed cotton breathable gym vest / sando featuring iconic 'NOT LAZY JUST ON ENERGY SAVING MODE' sea turtle graphic print. Sweat-wicking, flexible cut for gym, workout & casual lounging.",
+    images: [
+      '/assets/aistudio/IMG_20261024_142229083_HDR_657f9b30.jpg',
+    ],
+    isFeatured: true,
+    isNewArrival: true,
+    rating: 4.9,
+    reviewsCount: 18,
+    createdAt: '2026-10-24T14:22:00Z',
+  },
+  {
     id: 'prod-1',
     name: 'Royal Oxford Luxury Cotton Shirt',
     category: 'shirts',
@@ -291,5 +311,5 @@ export const INITIAL_SETTINGS: StoreSettings = {
   kistPeUpiId: '9826198421@kistpe',
   kistPeMerchantLink: 'upi://pay?pa=9826198421@kistpe&pn=ABHI%20FASHION&cu=INR&tn=KistPe%20Down%20Payment',
   kistPeAppName: 'Kist Pe Merchant (किस्त पे)',
-  appPublicUrl: 'https://ais-pre-3ikhphexvv4zk22tmwzsu7-644693391483.asia-east1.run.app',
+  appPublicUrl: 'https://drive.google.com/uc?export=download&id=1Fu_2Oul0hGXBnLV8sweNZFTooibbFfjh',
 };

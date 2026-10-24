@@ -1,4 +1,5 @@
 import { Order } from '../types';
+import { apiUrl } from '../utils/apiConfig';
 
 // Helper to convert base64 to Uint8Array for VAPID key
 function urlBase64ToUint8Array(base64String: string) {
@@ -134,7 +135,7 @@ export const NotificationService = {
       }
 
       // 2. Fetch VAPID public key from backend
-      const vapidRes = await fetch('/api/push/vapid-public-key');
+      const vapidRes = await fetch(apiUrl('/api/push/vapid-public-key'));
       if (!vapidRes.ok) {
         throw new Error('Failed to retrieve VAPID key from server');
       }
@@ -154,7 +155,7 @@ export const NotificationService = {
       });
 
       // 5. Save subscription to backend
-      const subRes = await fetch('/api/push/subscribe', {
+      const subRes = await fetch(apiUrl('/api/push/subscribe'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscription),
@@ -184,7 +185,7 @@ export const NotificationService = {
   // Send a test push notification
   async sendTestPush(): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await fetch('/api/push/test', {
+      const res = await fetch(apiUrl('/api/push/test'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -227,7 +228,7 @@ export const NotificationService = {
 
     // 3. Central backend broadcast (Web Push to all subscribed devices + SMS + WhatsApp)
     try {
-      const res = await fetch('/api/notify/order', {
+      const res = await fetch(apiUrl('/api/notify/order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order }),
@@ -245,7 +246,7 @@ export const NotificationService = {
   // Test SMS Gateway
   async testSms(phone: string): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await fetch('/api/notify/test-sms', {
+      const res = await fetch(apiUrl('/api/notify/test-sms'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -259,7 +260,7 @@ export const NotificationService = {
   // Test WhatsApp Gateway
   async testWhatsApp(phone: string): Promise<{ success: boolean; message: string; waUrl?: string }> {
     try {
-      const res = await fetch('/api/notify/test-whatsapp', {
+      const res = await fetch(apiUrl('/api/notify/test-whatsapp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -273,7 +274,7 @@ export const NotificationService = {
   // Fetch notification audit logs
   async getLogs(): Promise<any[]> {
     try {
-      const res = await fetch('/api/notifications/logs');
+      const res = await fetch(apiUrl('/api/notifications/logs'));
       if (res.ok) {
         const data = await res.json();
         return data.logs || [];
@@ -287,7 +288,7 @@ export const NotificationService = {
   // Fetch backend notification settings
   async getConfig(): Promise<any> {
     try {
-      const res = await fetch('/api/notifications/config');
+      const res = await fetch(apiUrl('/api/notifications/config'));
       if (res.ok) {
         return await res.json();
       }
@@ -300,7 +301,7 @@ export const NotificationService = {
   // Save backend notification settings
   async saveConfig(config: any): Promise<boolean> {
     try {
-      const res = await fetch('/api/notifications/config', {
+      const res = await fetch(apiUrl('/api/notifications/config'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

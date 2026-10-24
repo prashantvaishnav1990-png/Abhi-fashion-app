@@ -1,4 +1,5 @@
 import { CartItem, CustomerProfile, Order } from '../types';
+import { apiUrl } from '../utils/apiConfig';
 
 const CUSTOMER_SESSION_KEY = 'abhi_fashion_customer_session_v1';
 type CustomerListener = (customer: CustomerProfile | null) => void;
@@ -50,7 +51,7 @@ export const CustomerService = {
     }
 
     try {
-      const res = await fetch('/api/customer/login', {
+      const res = await fetch(apiUrl('/api/customer/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile: cleanMobile, name: name?.trim() }),
@@ -136,7 +137,7 @@ export const CustomerService = {
 
     // Sync to server in background
     try {
-      await fetch('/api/customer/sync', {
+      await fetch(apiUrl('/api/customer/sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(merged),
@@ -154,7 +155,7 @@ export const CustomerService = {
     if (!current || !current.mobile) return;
 
     try {
-      await fetch('/api/customer/sync', {
+      await fetch(apiUrl('/api/customer/sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

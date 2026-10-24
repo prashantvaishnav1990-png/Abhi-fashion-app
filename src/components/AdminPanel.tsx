@@ -60,6 +60,8 @@ import { getColorHex, getHdImageUrl, POPULAR_COLORS } from '../utils/productHelp
 import { HDImageLightbox } from './HDImageLightbox';
 import { PosterQrModal } from './PosterQrModal';
 import { PaymentGatewayService } from '../services/paymentGatewayService';
+import { compressImage, uploadImageToServer } from '../utils/imageCompressor';
+import { apiUrl, getApiBaseUrl } from '../utils/apiConfig';
 
 interface AdminPanelProps {
   products: Product[];
@@ -256,6 +258,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [localSettings, setLocalSettings] = useState<StoreSettings>({ ...settings });
   const [settingsSavedToast, setSettingsSavedToast] = useState(false);
 
+  // Cloud Database Sync State
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+
+  const handleSyncToCloud = async () => {
+    setIsSyncingCloud(true);
+    setSyncStatusMsg('Syncing with Cloud Server...');
+    const res = await StoreService.syncAllProductsToCloud();
+    setIsSyncingCloud(false);
+    if (res.success) {
+      setSyncStatusMsg(`✅ ${res.count} Products live on Cloud Server & Customer Apps!`);
+    } else {
+      setSyncStatusMsg(`⚠️ Cloud sync error. Kripya internet check karein.`);
+    }
+    setTimeout(() => setSyncStatusMsg(null), 4000);
+  };
+
   // Handle PIN Login
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -392,28 +411,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setShowNewCatInput(false);
   };
 
-  // Multiple Image File Upload Handler
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Multiple Image File Upload Handler with Auto-Compression & Cloud Upload
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        const dataUrl = uploadEvent.target?.result as string;
-        if (dataUrl) {
+    setIsUploadingImage(true);
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          // 1. Auto-compress to prevent 5MB localStorage overflow & ensure fast loading
+          const { dataUrl, blob } = await compressImage(file, 1200, 1200, 0.82);
+
+          // 2. Upload to server storage if reachable
+          const serverUrl = await uploadImageToServer(blob, file.name);
+          const finalImageSrc = serverUrl || dataUrl;
+
           setEditingProduct((prev) => {
             if (!prev) return null;
             return {
               ...prev,
-              images: [...prev.images, dataUrl],
+              images: [...prev.images, finalImageSrc],
             };
           });
+        } catch (fileErr) {
+          console.error('File compression/upload error:', fileErr);
         }
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+      }
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
   };
 
   // Filtered orders for admin table
@@ -660,6 +690,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
+                type="button"
+                onClick={handleSyncToCloud}
+                disabled={isSyncingCloud}
+                className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                title="Sabhi products ko cloud server par bhejein taaki sabhi customers ko turant dikhein"
+              >
+                <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                <span>{isSyncingCloud ? 'Syncing...' : 'Sync to Cloud (क्लाउड सिंक)'}</span>
+              </button>
+
+              <button
                 onClick={handleOpenAddProduct}
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
               >
@@ -668,6 +709,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
             </div>
           </div>
+
+          {syncStatusMsg && (
+            <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{syncStatusMsg}</span>
+            </div>
+          )}
 
           {/* Products List Table / Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -1771,6 +1819,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 <Save className="w-4 h-4" />
                 <span>Save Store Configurations</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cloud Backend & Customer Sync Connectivity */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-emerald-950/20 border border-emerald-500/30 text-xs space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <h3 className="font-bold text-white text-sm">Cloud Backend & Customer App Sync</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Live & Connected
+              </span>
+            </div>
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Admin App aur Customer App dono is cloud backend se connected hain. Yahan se save kiya gaya koi bhi product ya photo turant sabhi grahako ke phone me live ho jata hai.
+            </p>
+            <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-emerald-300 truncate">
+              {getApiBaseUrl()}
+            </div>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleSyncToCloud}
+                disabled={isSyncingCloud}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                <span>{isSyncingCloud ? 'Syncing...' : 'Sync All Data with Cloud Now'}</span>
               </button>
             </div>
           </div>

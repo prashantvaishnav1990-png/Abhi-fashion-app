@@ -58,26 +58,29 @@ export function getColorHex(colorName: string): string {
   return '#475569';
 }
 
+import { resolveImageUrl } from './apiConfig';
+
 /**
- * Ensures any Unsplash or external image URL is requested in High Definition (HD 1200-1600px, 90+ quality)
+ * Ensures any Unsplash, local upload, or external image URL is resolved and requested in High Definition
  */
 export function getHdImageUrl(url: string): string {
   if (!url) return '';
-  if (url.startsWith('data:image')) {
-    // Base64 user uploaded image
-    return url;
+  const resolved = resolveImageUrl(url);
+  if (resolved.startsWith('data:image') || resolved.startsWith('blob:')) {
+    // Base64 or Blob user uploaded image
+    return resolved;
   }
-  if (url.includes('images.unsplash.com')) {
+  if (resolved.includes('images.unsplash.com')) {
     try {
-      const parsed = new URL(url);
+      const parsed = new URL(resolved);
       parsed.searchParams.set('auto', 'format');
       parsed.searchParams.set('fit', 'crop');
       parsed.searchParams.set('w', '1400');
       parsed.searchParams.set('q', '90');
       return parsed.toString();
     } catch {
-      return url;
+      return resolved;
     }
   }
-  return url;
+  return resolved;
 }

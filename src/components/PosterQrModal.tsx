@@ -19,9 +19,13 @@ import {
   Link2,
   HelpCircle,
   Save,
+  MessageCircle,
 } from 'lucide-react';
 import { StoreSettings } from '../types';
 import { StoreService } from '../services/storeStorage';
+
+const VERIFIED_GOOGLE_DRIVE_URL =
+  'https://drive.google.com/uc?export=download&id=1Fu_2Oul0hGXBnLV8sweNZFTooibbFfjh';
 
 interface PosterQrModalProps {
   isOpen: boolean;
@@ -37,20 +41,46 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   onSaveSettings,
 }) => {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  const defaultDownloadUrl = `${currentOrigin}/download`;
+  const defaultDownloadUrl =
+    currentOrigin && !currentOrigin.includes('localhost')
+      ? `${currentOrigin}/download`
+      : VERIFIED_GOOGLE_DRIVE_URL;
 
-  const [customUrl, setCustomUrl] = useState<string>(settings.appPublicUrl || '');
-  const [activeUrlMode, setActiveUrlMode] = useState<'custom' | 'default'>(
-    settings.appPublicUrl ? 'custom' : 'default'
-  );
+  const initialUrl =
+    settings.appPublicUrl && !settings.appPublicUrl.includes('localhost')
+      ? settings.appPublicUrl
+      : VERIFIED_GOOGLE_DRIVE_URL;
+
+  const [customUrl, setCustomUrl] = useState<string>(initialUrl);
+  const [activeUrlMode, setActiveUrlMode] = useState<'custom' | 'default'>('custom');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [printNotice, setPrintNotice] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
-  const activeDownloadUrl =
+  // Sync with settings whenever modal opens or settings update
+  useEffect(() => {
+    if (isOpen) {
+      if (settings.appPublicUrl && !settings.appPublicUrl.includes('localhost')) {
+        setCustomUrl(settings.appPublicUrl);
+      } else {
+        setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
+      }
+      setActiveUrlMode('custom');
+    }
+  }, [isOpen, settings.appPublicUrl]);
+
+  // Determine the active link to encode inside the Barcode
+  let activeDownloadUrl =
     activeUrlMode === 'custom' && customUrl.trim() ? customUrl.trim() : defaultDownloadUrl;
+
+  // Never allow localhost inside the QR code for shop posters!
+  if (activeDownloadUrl.includes('localhost') || !activeDownloadUrl.startsWith('http')) {
+    activeDownloadUrl = VERIFIED_GOOGLE_DRIVE_URL;
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,9 +102,10 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   if (!isOpen) return null;
 
   const handleSaveCustomUrl = () => {
+    const target = activeUrlMode === 'custom' ? customUrl.trim() : VERIFIED_GOOGLE_DRIVE_URL;
     const updated: StoreSettings = {
       ...settings,
-      appPublicUrl: activeUrlMode === 'custom' ? customUrl.trim() : '',
+      appPublicUrl: target,
     };
     StoreService.saveSettings(updated);
     if (onSaveSettings) {
@@ -87,21 +118,82 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   const handleCopyLink = () => {
     navigator.clipboard.writeText(activeDownloadUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setShareSuccess('Link copied to clipboard!');
+    setTimeout(() => {
+      setCopied(false);
+      setShareSuccess(null);
+    }, 2500);
   };
 
-  const handleDownloadQrPng = () => {
+  // Android & Mobile proof download and share
+  const handleDownloadQrPng = async () => {
     if (!qrDataUrl) return;
-    const a = document.createElement('a');
-    a.href = qrDataUrl;
-    a.download = `AbhiFashion-App-Download-QR.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+
+    // 1. Try Native Web Share API first (Opens Gallery / WhatsApp / Print sheet on Android phone)
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        const res = await fetch(qrDataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'AbhiFashion-Store-QR.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'ABHI FASHION - Poster Barcode',
+            text: `ABHI FASHION Official Store App Download Barcode:\n${activeDownloadUrl}`,
+            files: [file],
+          });
+          setShareSuccess('Shared / Saved successfully!');
+          setTimeout(() => setShareSuccess(null), 3000);
+          return;
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.warn('Native share fallback:', err);
+      } else {
+        return; // User cancelled share sheet
+      }
+    }
+
+    // 2. Direct HTTP server download (Android DownloadManager triggers for real HTTP file URLs)
+    try {
+      const serverUrl = `/api/poster-qr/download?url=${encodeURIComponent(activeDownloadUrl)}`;
+      const link = document.createElement('a');
+      link.href = serverUrl;
+      link.download = 'AbhiFashion-App-Download-QR.png';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setShareSuccess('QR Code downloading to your phone!');
+      setTimeout(() => setShareSuccess(null), 3000);
+    } catch {
+      // 3. Fallback: Data URL download for standard browsers
+      const link = document.createElement('a');
+      link.href = qrDataUrl;
+      link.download = 'AbhiFashion-App-Download-QR.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setShareSuccess('QR Code downloaded!');
+      setTimeout(() => setShareSuccess(null), 3000);
+    }
+  };
+
+  // Direct 1-tap WhatsApp Share (Sends image link to flex printer or contacts)
+  const handleShareToWhatsApp = () => {
+    const text = `🛍️ *${settings.storeName} - Dukaan Poster Barcode*\n\nCustomer ke liye App Download Barcode link:\n👉 ${activeDownloadUrl}\n\nIs link se customer direct Android APK download kar sakte hain!`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch {
+      setPrintNotice(true);
+      setTimeout(() => setPrintNotice(false), 4500);
+    }
   };
 
   return (
@@ -259,6 +351,21 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
             )}
           </div>
 
+          {/* Feedback Toasts */}
+          {shareSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-2 animate-in fade-in">
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span>{shareSuccess}</span>
+            </div>
+          )}
+
+          {printNotice && (
+            <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs flex items-center gap-2 animate-in fade-in">
+              <Smartphone className="w-4 h-4 text-amber-400" />
+              <span>Mobile WebView me direct print support nahi hai. Kripya "Share on WA / Flex" se image bhejein ya PC se print karein.</span>
+            </div>
+          )}
+
           {/* Action Row */}
           <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900 border border-slate-800">
             <div className="text-xs">
@@ -267,11 +374,11 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                 {activeDownloadUrl}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied!' : 'Copy Link'}</span>
@@ -279,17 +386,25 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadQrPng}
-                className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-4 h-4 text-slate-950" />
                 <span>Download QR Image</span>
               </button>
               <button
                 type="button"
-                onClick={handlePrint}
-                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                onClick={handleShareToWhatsApp}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <MessageCircle className="w-4 h-4" />
+                <span>Share on WA (Flex Shop)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
                 <span>Print Poster</span>
               </button>
             </div>
@@ -345,12 +460,16 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
 
               {/* QR Code In Center */}
               <div className="my-4 flex flex-col items-center justify-center">
-                <div className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-xl relative group">
+                <div
+                  onClick={handleDownloadQrPng}
+                  title="Click to Download or Share"
+                  className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-xl relative group cursor-pointer hover:scale-102 transition"
+                >
                   {qrDataUrl ? (
                     <img
                       src={qrDataUrl}
                       alt="ABHI FASHION App Download QR Code"
-                      className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
+                      className="w-48 h-48 sm:w-56 sm:h-56 object-contain select-none"
                     />
                   ) : (
                     <div className="w-48 h-48 sm:w-56 sm:h-56 bg-slate-100 flex items-center justify-center text-slate-400 text-xs">
@@ -364,6 +483,14 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Mobile Long Press Tip */}
+                <div className="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-center max-w-xs">
+                  <p className="text-[10px] text-amber-900 font-bold leading-tight">
+                    💡 <strong>Mobile Tip:</strong> Photo gallery me save karne ke liye upar Barcode par <strong>1 second ungli daba kar rakhein (Long Press)</strong> aur <strong>"Download image"</strong> chunein!
+                  </p>
+                </div>
+
                 <span className="text-[11px] font-mono font-extrabold text-[#0B132B] mt-2 break-all max-w-[280px] text-center px-2 py-0.5 rounded-md bg-amber-50 border border-amber-300">
                   {activeDownloadUrl}
                 </span>
@@ -416,36 +543,58 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
             </h4>
             <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-300 leading-relaxed">
               <li>
-                <strong>Flex / Standee Printing:</strong> Upar diye gaye <strong>"Download QR Image"</strong> button se Barcode PNG download karke flex printing shop ko WhatsApp kar sakte hain.
+                <strong>Flex / Standee Printing:</strong> Upar diye gaye <strong>"Download QR Image"</strong> ya <strong>"Share on WA"</strong> button se Barcode PNG flex printing shop ko WhatsApp kar sakte hain.
               </li>
               <li>
                 <strong>Dukaan me Direct Print:</strong> <strong>"Print Poster"</strong> button dabayein aur apne printer se A4 size photo paper ya glossy sheet par print karke counter par standee me laga dein.
               </li>
               <li>
-                <strong>Automatic Scan:</strong> Koi bhi customer apne phone ke Camera, Google Lens, ya Paytm/GPay se scan karega, toh turant Abhi Fashion App install karne ka direct page khul jayega!
+                <strong>Automatic Scan:</strong> Koi bhi customer apne phone ke Camera, Google Lens, ya Paytm/GPay se scan karega, toh turant Google Drive se Abhi Fashion App download hone lagega!
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 bg-[#0B132B] border-t border-slate-800 flex justify-between items-center">
-          <a
-            href={activeDownloadUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Test Download Page</span>
-          </a>
+        {/* Sticky Mobile Modal Footer (Always Visible!) */}
+        <div className="p-3 sm:p-4 bg-[#0B132B] border-t border-slate-800 flex flex-wrap justify-between items-center gap-2 sticky bottom-0 z-10 shadow-2xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadQrPng}
+              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
+            >
+              <Download className="w-4 h-4 text-slate-950" />
+              <span>Download Barcode</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleShareToWhatsApp}
+              className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md"
+              title="Share on WhatsApp"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">WhatsApp Share</span>
+            </button>
+          </div>
 
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition cursor-pointer"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={activeDownloadUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 px-2 py-1"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Test Link</span>
+            </a>
+
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -26,6 +26,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from './data/initialData';
+import { apiUrl, resolveImageUrl } from './utils/apiConfig';
 import {
   Banner,
   CartItem,
@@ -287,13 +288,15 @@ export default function App() {
   const handleRestoreSampleProducts = () => {
     const ok = window.confirm('Kya aap sample products ko wapas screen par lana chahte hain?');
     if (!ok) return;
-    fetch('/api/products', {
+    fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products: INITIAL_PRODUCTS }),
     })
       .then(() => {
-        localStorage.setItem('abhi_fashion_products_v1', JSON.stringify(INITIAL_PRODUCTS));
+        try {
+          localStorage.setItem('abhi_fashion_products_v1', JSON.stringify(INITIAL_PRODUCTS));
+        } catch {}
         setProducts(INITIAL_PRODUCTS);
         setDeleteNotice('✅ Sample products wapas restore ho gaye hain!');
         setTimeout(() => setDeleteNotice(null), 3500);

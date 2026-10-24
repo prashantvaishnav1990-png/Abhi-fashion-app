@@ -16,6 +16,7 @@ import {
   StoreSettings,
 } from '../types';
 import { NotificationService } from './notificationService';
+import { apiUrl } from '../utils/apiConfig';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'abhi_fashion_products_v1',
@@ -64,19 +65,21 @@ let lastKnownVersions: Record<string, number> = {};
 
 async function syncProductsFromServer() {
   try {
-    const res = await fetch('/api/products');
+    const res = await fetch(apiUrl('/api/products'));
     if (!res.ok) return;
     const data = await res.json();
     if (data && data.products !== null && Array.isArray(data.products)) {
       const currentLocal = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
       const newJson = JSON.stringify(data.products);
       if (currentLocal !== newJson) {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, newJson);
+        try {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, newJson);
+        } catch {}
         notifyListeners();
       }
     } else {
       const local = StoreService.getProducts();
-      fetch('/api/products', {
+      fetch(apiUrl('/api/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ products: local }),
@@ -89,14 +92,16 @@ async function syncProductsFromServer() {
 
 async function syncBannersFromServer() {
   try {
-    const res = await fetch('/api/banners');
+    const res = await fetch(apiUrl('/api/banners'));
     if (!res.ok) return;
     const data = await res.json();
     if (data && data.banners !== null && Array.isArray(data.banners)) {
       const currentLocal = localStorage.getItem(STORAGE_KEYS.BANNERS);
       const newJson = JSON.stringify(data.banners);
       if (currentLocal !== newJson) {
-        localStorage.setItem(STORAGE_KEYS.BANNERS, newJson);
+        try {
+          localStorage.setItem(STORAGE_KEYS.BANNERS, newJson);
+        } catch {}
         notifyListeners();
       }
     }
@@ -107,11 +112,13 @@ async function syncBannersFromServer() {
 
 async function syncCategoriesFromServer() {
   try {
-    const res = await fetch('/api/categories');
+    const res = await fetch(apiUrl('/api/categories'));
     if (!res.ok) return;
     const data = await res.json();
     if (data && Array.isArray(data.categories)) {
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+      try {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+      } catch {}
       notifyListeners();
     }
   } catch {}
@@ -119,11 +126,13 @@ async function syncCategoriesFromServer() {
 
 async function syncSettingsFromServer() {
   try {
-    const res = await fetch('/api/settings');
+    const res = await fetch(apiUrl('/api/settings'));
     if (!res.ok) return;
     const data = await res.json();
     if (data && data.settings && typeof data.settings === 'object') {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
+      try {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
+      } catch {}
       notifyListeners();
     }
   } catch {}
@@ -131,7 +140,7 @@ async function syncSettingsFromServer() {
 
 async function syncOrdersFromServer() {
   try {
-    const res = await fetch('/api/orders');
+    const res = await fetch(apiUrl('/api/orders'));
     if (!res.ok) return;
     const data = await res.json();
     const serverOrders: Order[] = data.orders || [];
@@ -197,7 +206,7 @@ async function syncOrdersFromServer() {
 // Check versions on server for fast continuous sync
 async function checkVersionsFromServer() {
   try {
-    const res = await fetch('/api/sync/versions');
+    const res = await fetch(apiUrl('/api/sync/versions'));
     if (!res.ok) return;
     const { versions } = await res.json();
     if (!versions) return;
@@ -226,7 +235,7 @@ function initRealtimeSync() {
   if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
 
   try {
-    const es = new EventSource('/api/sync/events');
+    const es = new EventSource(apiUrl('/api/sync/events'));
 
     es.addEventListener('connected', (e: MessageEvent) => {
       try {
@@ -342,11 +351,23 @@ export const StoreService = {
     } else {
       products.unshift(product);
     }
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    } catch (e) {
+      console.warn('LocalStorage save failed, relying on cloud database:', e);
+    }
     notifyListeners();
 
-    // Sync to server database
-    fetch('/api/products', {
+    // 1. Instant single-product upsert to Cloud Server
+    fetch(apiUrl('/api/products/upsert'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product }),
+    }).catch(() => {});
+
+    // 2. Full catalog sync to Cloud Server
+    fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products }),
@@ -355,12 +376,14 @@ export const StoreService = {
 
   deleteProduct(id: string): void {
     const products = this.getProducts().filter((p) => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    } catch {}
     notifyListeners();
 
     // Sync deletion to server database
-    fetch(`/api/products/${id}`, { method: 'DELETE' }).catch(() => {});
-    fetch('/api/products', {
+    fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' }).catch(() => {});
+    fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products }),
@@ -374,11 +397,13 @@ export const StoreService = {
     const filtered = current.filter((p) => !initialIds.has(p.id) && !p.id.startsWith('prod-sample'));
     const deletedCount = current.length - filtered.length;
 
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+    } catch {}
     notifyListeners();
 
     // Sync remaining products to server database
-    fetch('/api/products', {
+    fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products: filtered }),
@@ -412,7 +437,7 @@ export const StoreService = {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     notifyListeners();
 
-    fetch('/api/categories', {
+    fetch(apiUrl('/api/categories'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categories }),
@@ -421,10 +446,12 @@ export const StoreService = {
 
   deleteCategory(id: string): void {
     const categories = this.getCategories().filter((c) => c.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    try {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    } catch {}
     notifyListeners();
 
-    fetch('/api/categories', {
+    fetch(apiUrl('/api/categories'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categories }),
@@ -453,11 +480,13 @@ export const StoreService = {
     } else {
       banners.unshift(banner);
     }
-    localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
+    try {
+      localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
+    } catch {}
     notifyListeners();
 
     // Instant real-time broadcast to all customers across all devices
-    fetch('/api/banners', {
+    fetch(apiUrl('/api/banners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ banners }),
@@ -466,12 +495,14 @@ export const StoreService = {
 
   deleteBanner(id: string): void {
     const banners = this.getBanners().filter((b) => b.id !== id);
-    localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
+    try {
+      localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
+    } catch {}
     notifyListeners();
 
     // Instant deletion broadcast to all customers
-    fetch(`/api/banners/${id}`, { method: 'DELETE' }).catch(() => {});
-    fetch('/api/banners', {
+    fetch(apiUrl(`/api/banners/${id}`), { method: 'DELETE' }).catch(() => {});
+    fetch(apiUrl('/api/banners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ banners }),
@@ -496,17 +527,28 @@ export const StoreService = {
       if (!parsed.emiTenures || parsed.emiTenures.some((t: number) => t > 3)) {
         parsed.emiTenures = [2, 3];
       }
-      return { ...INITIAL_SETTINGS, ...parsed, emiMinAmount: parsed.emiMinAmount || 5000, emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33 };
+      if (!parsed.appPublicUrl || parsed.appPublicUrl.includes('ais-pre') || parsed.appPublicUrl.includes('ais-dev')) {
+        parsed.appPublicUrl = INITIAL_SETTINGS.appPublicUrl;
+      }
+      return {
+        ...INITIAL_SETTINGS,
+        ...parsed,
+        emiMinAmount: parsed.emiMinAmount || 5000,
+        emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33,
+        appPublicUrl: parsed.appPublicUrl || INITIAL_SETTINGS.appPublicUrl,
+      };
     } catch {
       return INITIAL_SETTINGS;
     }
   },
 
   saveSettings(settings: StoreSettings): void {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    try {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    } catch {}
     notifyListeners();
 
-    fetch('/api/settings', {
+    fetch(apiUrl('/api/settings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ settings }),
@@ -518,7 +560,6 @@ export const StoreService = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
       if (!data) {
-        // Seed an initial demo order so admin has a realistic preview immediately
         const initialOrder: Order = {
           id: 'ord-sample-101',
           orderNumber: 'AF-89412',
@@ -553,7 +594,9 @@ export const StoreService = {
           notes: 'Call before delivery',
         };
         const initialOrders = [initialOrder];
-        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(initialOrders));
+        try {
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(initialOrders));
+        } catch {}
         return initialOrders;
       }
       return JSON.parse(data);
@@ -606,15 +649,19 @@ export const StoreService = {
         prod.stock = Math.max(0, prod.stock - item.quantity);
       }
     });
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    } catch {}
 
     // Save order
     orders.unshift(newOrder);
     knownOrderIds.add(newOrder.id);
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    } catch {}
 
     // Save to server database
-    fetch('/api/orders', {
+    fetch(apiUrl('/api/orders'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newOrder),
@@ -640,7 +687,7 @@ export const StoreService = {
     orders[orderIndex].orderStatus = newStatus;
 
     // Sync to server API
-    fetch(`/api/orders/${orderId}/status`, {
+    fetch(apiUrl(`/api/orders/${orderId}/status`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
@@ -656,7 +703,9 @@ export const StoreService = {
           prod.stock += item.quantity;
         }
       });
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      } catch {}
     }
     // If order was resurrected from cancelled, reduce stock again
     else if (previousStatus === 'Cancelled' && newStatus !== 'Cancelled') {
@@ -667,29 +716,35 @@ export const StoreService = {
           prod.stock = Math.max(0, prod.stock - item.quantity);
         }
       });
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      } catch {}
     }
 
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    } catch {}
     notifyListeners();
   },
 
   // Reset database back to default initial seed
   resetDatabase(): void {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
-    localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(INITIAL_BANNERS));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
-    localStorage.removeItem(STORAGE_KEYS.ORDERS);
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
+      localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(INITIAL_BANNERS));
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
+      localStorage.removeItem(STORAGE_KEYS.ORDERS);
+    } catch {}
     notifyListeners();
 
-    fetch('/api/products', {
+    fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products: INITIAL_PRODUCTS }),
     }).catch(() => {});
 
-    fetch('/api/banners', {
+    fetch(apiUrl('/api/banners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ banners: INITIAL_BANNERS }),
@@ -715,6 +770,37 @@ export const StoreService = {
   },
 
   async syncWithServerNow(): Promise<void> {
+    await syncProductsFromServer();
     await syncOrdersFromServer();
+    await syncBannersFromServer();
+  },
+
+  // Force push all local products to the cloud server
+  async syncAllProductsToCloud(): Promise<{ success: boolean; count: number }> {
+    const local = this.getProducts();
+    try {
+      const res = await fetch(apiUrl('/api/products'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: local }),
+      });
+      if (res.ok) {
+        return { success: true, count: local.length };
+      }
+    } catch (e) {
+      console.error('Failed to sync products to cloud:', e);
+    }
+    return { success: false, count: local.length };
   },
 };
+
+// Immediate background sync on application startup (Web & APK)
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    syncProductsFromServer();
+    syncBannersFromServer();
+    syncCategoriesFromServer();
+    syncSettingsFromServer();
+    syncOrdersFromServer();
+  }, 100);
+}
