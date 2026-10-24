@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ShoppingBag, Shield, Sparkles, MapPin, Smartphone, User, Home, Grid, PackageCheck } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Sparkles, MapPin, Smartphone, User, Home, Grid, PackageCheck, QrCode, Zap, CreditCard } from 'lucide-react';
 import { CustomerProfile, StoreSettings } from '../types';
 
 interface HeaderProps {
@@ -45,6 +45,19 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur-md border-b border-slate-800/80 shadow-lg pt-[env(safe-area-inset-top,0px)]">
+      {/* 10 Minute Express Delivery & Payment Info Strip */}
+      <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-rose-500 text-slate-950 px-3 py-1 text-center text-[10px] sm:text-xs font-black flex items-center justify-center gap-2 shadow-xs">
+        <span className="flex items-center gap-1">
+          <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950 animate-pulse shrink-0" />
+          <span>⚡ 10 MINUTE DELIVERY IN CHHUIKHADAN (छुईखदान लोकल में मात्र 10 मिनट में होम डिलीवरी फ्री!)</span>
+        </span>
+        <span className="hidden md:inline text-slate-950/60 font-bold">•</span>
+        <span className="hidden md:inline-flex items-center gap-1 font-bold text-[11px] text-slate-950">
+          <CreditCard className="w-3 h-3 text-slate-950" />
+          <span>Debit/Credit Card & Bank EMI Available</span>
+        </span>
+      </div>
+
       {/* Top Header Row: Brand Logo & User Actions */}
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
         {/* Brand Logo & Name */}
@@ -86,6 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Search className="w-4 h-4 text-amber-400" />
             <span className="hidden md:inline text-slate-300">Search shirts, jeans...</span>
           </button>
+
 
           {/* Admin Mode Shortcut (only if enabled) */}
           {showAdminButton && onOpenAdmin && (

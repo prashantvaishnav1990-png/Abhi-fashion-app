@@ -487,13 +487,16 @@ export const StoreService = {
         return INITIAL_SETTINGS;
       }
       const parsed = JSON.parse(data);
-      if (!parsed.emiMinAmount || parsed.emiMinAmount === 999) {
-        parsed.emiMinAmount = 3000;
+      if (!parsed.emiMinAmount || parsed.emiMinAmount === 999 || parsed.emiMinAmount === 3000) {
+        parsed.emiMinAmount = 5000;
+      }
+      if (!parsed.emiDownPaymentPercent) {
+        parsed.emiDownPaymentPercent = 33;
       }
       if (!parsed.emiTenures || parsed.emiTenures.some((t: number) => t > 3)) {
         parsed.emiTenures = [2, 3];
       }
-      return { ...INITIAL_SETTINGS, ...parsed };
+      return { ...INITIAL_SETTINGS, ...parsed, emiMinAmount: parsed.emiMinAmount || 5000, emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33 };
     } catch {
       return INITIAL_SETTINGS;
     }

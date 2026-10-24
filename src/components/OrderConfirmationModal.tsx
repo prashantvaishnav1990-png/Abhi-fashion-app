@@ -29,9 +29,9 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   onClose,
   onViewAllOrders,
 }) => {
-  if (!order) return null;
-
   const [copied, setCopied] = React.useState(false);
+
+  if (!order) return null;
 
   const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -56,13 +56,21 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
       )
       .join('\n');
 
-    const message = `🛍️ *NEW ORDER - ${settings.storeName}*
+    let emiText = '';
+    if (order.emiDetails || order.paymentMethod === 'emi') {
+      emiText = `\n⚡ *EASY EMI DETAILS (33% Down Payment + Max 3 Months):*
+• *Down Payment (33%):* ₹${order.emiDetails?.downPaymentAmount || Math.round(order.totalAmount * 0.33)}
+• *Monthly EMI:* ₹${order.emiDetails?.monthlyInstallment || Math.round((order.totalAmount * 0.67) / 3)}/month (${order.emiDetails?.tenure || '3 Months'})
+• *Customer UPI ID:* ${order.emiDetails?.mandateUpiId || order.customer.upiId || 'Not provided'}`;
+    }
+
+    const message = `🛍️ *ORDER CONFIRMATION - ${settings.storeName}*
 ---------------------------------------
 *Order ID:* ${order.orderNumber}
 *Date:* ${formattedDate}
 *Customer:* ${order.customer.name}
 *Mobile:* +91 ${order.customer.mobile}
-*Address:* ${order.customer.address}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
+*Address:* ${order.customer.address}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}${emiText}
 
 *Items Ordered:*
 ${itemLines}
@@ -70,14 +78,14 @@ ${itemLines}
 *Total Payable:* ₹${order.totalAmount}
 *Payment Method:* ${order.paymentMethod.toUpperCase()} (${order.paymentStatus})
 *Status:* ${order.orderStatus}
-${order.notes ? `*Notes:* ${order.notes}` : ''}
----------------------------------------
-Please confirm delivery timeline!`;
+${order.notes ? `*Notes:* ${order.notes}\n` : ''}---------------------------------------
+Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya confirm karein! 🙏`;
 
     // Clean phone number (strip spaces, +, hyphens)
-    const cleanPhone = settings.whatsappNumber.replace(/\D/g, '');
+    const cleanPhone = (settings.whatsappNumber || '9826198421').replace(/\D/g, '');
     const encoded = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encoded}`;
+    const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    const whatsappUrl = `https://wa.me/${targetPhone}?text=${encoded}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -237,10 +245,18 @@ Please confirm delivery timeline!`;
             </div>
 
             {(order.emiDetails || order.customer.upiId) && (
-              <div className="col-span-2 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-[11px] text-emerald-200">
-                <div className="flex items-center justify-between font-bold text-emerald-300 mb-1">
-                  <span>⚡ Easy EMI Mandate (किस्त):</span>
-                  <span className="text-amber-300 font-mono">₹{order.emiDetails?.monthlyInstallment || Math.round(order.totalAmount / 3)}/mo</span>
+              <div className="col-span-2 p-3 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
+                <div className="flex items-center justify-between font-bold text-amber-300">
+                  <span>⚡ Easy EMI Mandate (Max 3 Months):</span>
+                  <span className="text-white font-mono font-black text-xs">
+                    ₹{order.emiDetails?.monthlyInstallment || Math.round((order.totalAmount * 0.67) / 3)}/mo
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-300 border-t border-amber-500/20 pt-1">
+                  <span>Down Payment (33%):</span>
+                  <span className="font-bold text-amber-400">
+                    ₹{order.emiDetails?.downPaymentAmount || Math.round(order.totalAmount * 0.33)}
+                  </span>
                 </div>
                 <p className="text-slate-300">
                   Customer UPI ID: <span className="font-mono font-bold text-amber-300">{order.emiDetails?.mandateUpiId || order.customer.upiId}</span>

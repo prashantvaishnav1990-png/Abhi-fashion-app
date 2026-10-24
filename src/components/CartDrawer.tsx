@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Truck, CreditCard } from 'lucide-react';
+import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Truck, CreditCard, Zap } from 'lucide-react';
 import { CartItem, StoreSettings } from '../types';
 
 interface CartDrawerProps {
@@ -202,6 +202,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* Drawer Footer: Bill Summary & Checkout */}
         {items.length > 0 && (
           <div className="p-4 bg-[#0A0F1D] border-t border-slate-800 space-y-3">
+            {/* 10 Minute Express Delivery Badge */}
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 font-black text-amber-300">
+                <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span>⚡ 10 Min Delivery in Chhuikhadan</span>
+              </span>
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                FREE
+              </span>
+            </div>
+
             <div className="space-y-1.5 text-xs text-slate-300">
               <div className="flex justify-between">
                 <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
@@ -232,21 +243,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               {/* EMI Eligibility Callout */}
               <div className="pt-1">
-                {grandTotal >= (settings.emiMinAmount || 3000) ? (
+                {grandTotal >= (settings.emiMinAmount || 5000) ? (
                   <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
                     <span className="flex items-center gap-1 font-semibold">
                       <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-                      Easy EMI Eligible:
+                      Easy EMI Eligible (33% Down):
                     </span>
-                    <span className="font-bold text-white">₹{Math.round(grandTotal / 3)}/mo (Max 3 Mo.)</span>
+                    <span className="font-bold text-white">
+                      ₹{Math.round((grandTotal * 0.67) / 3)}/mo (Max 3 Mo.)
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-slate-300">
                     <span className="flex items-center gap-1">
                       <CreditCard className="w-3.5 h-3.5 text-amber-400" />
-                      EMI starts at ₹{(settings.emiMinAmount || 3000).toLocaleString('en-IN')} (Max 3 Mo.):
+                      EMI starts at ₹{(settings.emiMinAmount || 5000).toLocaleString('en-IN')} (Max 3 Mo.):
                     </span>
-                    <span className="text-amber-400 font-bold">Add ₹{((settings.emiMinAmount || 3000) - grandTotal).toLocaleString('en-IN')} more</span>
+                    <span className="text-amber-400 font-bold">Add ₹{((settings.emiMinAmount || 5000) - grandTotal).toLocaleString('en-IN')} more</span>
                   </div>
                 )}
               </div>

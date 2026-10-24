@@ -17,23 +17,25 @@ export const HDImageLightbox: React.FC<HDImageLightboxProps> = ({
   productName,
   onClose,
 }) => {
-  if (!isOpen || images.length === 0) return null;
-
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isZoomed, setIsZoomed] = useState(false);
 
-  const currentRawUrl = images[currentIndex] || images[0];
-  const hdUrl = getHdImageUrl(currentRawUrl);
-
   const handleNext = () => {
+    if (images.length === 0) return;
     setCurrentIndex((prev) => (prev + 1) % images.length);
     setIsZoomed(false);
   };
 
   const handlePrev = () => {
+    if (images.length === 0) return;
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
     setIsZoomed(false);
   };
+
+  if (!isOpen || images.length === 0) return null;
+
+  const currentRawUrl = images[currentIndex] || images[0] || '';
+  const hdUrl = getHdImageUrl(currentRawUrl);
 
   return (
     <div

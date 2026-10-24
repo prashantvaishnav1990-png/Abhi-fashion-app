@@ -101,7 +101,7 @@ jobs:
           name: AbhiFashion-Customer-APK
           path: output-apk/AbhiFashion-Customer.apk
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 1
 
       - name: Upload Admin APK to Artifacts
         uses: actions/upload-artifact@v4
@@ -109,7 +109,7 @@ jobs:
           name: AbhiFashion-Admin-APK
           path: output-apk/AbhiFashion-Admin.apk
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 1
 
       - name: Create GitHub Release with both APK downloads
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')

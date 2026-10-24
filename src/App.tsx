@@ -23,6 +23,7 @@ import {
   Package,
   Radio,
   Image as ImageIcon,
+  QrCode,
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from './data/initialData';
 import {
@@ -56,6 +57,8 @@ import { CustomerLoginModal } from './components/CustomerLoginModal';
 import { OfferBannerModal } from './components/OfferBannerModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { PosterQrModal } from './components/PosterQrModal';
+import { AppDownloadView } from './components/AppDownloadView';
 
 export default function App() {
   // App Mode State: 'customer' (Client Storefront) vs 'admin' (Store Owner App)
@@ -121,11 +124,26 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  // Download view state for poster barcode scanning
+  const [isDownloadView, setIsDownloadView] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      return path.startsWith('/download') || params.get('view') === 'download' || params.get('download') === 'true';
+    }
+    return false;
+  });
+
   // Sync with browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
+      if (path.startsWith('/download') || params.get('view') === 'download' || params.get('download') === 'true') {
+        setIsDownloadView(true);
+      } else {
+        setIsDownloadView(false);
+      }
       if (
         path.startsWith('/admin') ||
         params.get('app') === 'admin' ||
@@ -380,6 +398,23 @@ export default function App() {
   }
 
   // -------------------------------------------------------------
+  // DEDICATED APP DOWNLOAD VIEW (When barcode on poster is scanned)
+  // -------------------------------------------------------------
+  if (isDownloadView) {
+    return (
+      <AppDownloadView
+        settings={settings}
+        onOpenStore={() => {
+          setIsDownloadView(false);
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/');
+          }
+        }}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
   // DEDICATED CUSTOMER APP MODE (For Shoppers & Buyers)
   // -------------------------------------------------------------
   return (
@@ -458,29 +493,34 @@ export default function App() {
               }}
             />
 
-            {/* Promotional Offer / Pay Later Callout Banner */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-600/10 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+            {/* Promotional Offer / 10-Min Delivery & Card / EMI Callout Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-amber-600/15 border border-amber-500/40 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0 border border-amber-500/30">
-                  <CreditCard className="w-6 h-6" />
+                  <Truck className="w-6 h-6 text-amber-400" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
-                    FLEXIBLE SHOPPING AT CHHUIKHADAN
-                  </span>
-                  <h3 className="text-base sm:text-lg font-black text-white">
-                    Shop Now • Pay Later with Easy EMI
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
+                      CHHUIKHADAN SPECIAL EXPRESS
+                    </span>
+                    <span className="px-2 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
+                      ⚡ 10 MINUTE DELIVERY
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                    10 Minute Delivery & Card / EMI Accepted
                   </h3>
                   <p className="text-xs text-slate-300 mt-0.5">
-                    Upgrade your wardrobe today with cardless installments or pay Cash on Delivery.
+                    Chhuikhadan local me 10 minute me Free delivery! Debit Card, Credit Card, Bank EMI ya Cardless Easy EMI se khareedein.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
                 <button
                   onClick={() => setIsSearchOpen(true)}
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shadow-md"
+                  className="w-full md:w-auto bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shadow-md text-center"
                 >
                   Explore Trending Fits
                 </button>
@@ -813,14 +853,6 @@ export default function App() {
                 <span>WhatsApp: +{settings.whatsappNumber}</span>
               </a>
 
-              <div>
-                <button
-                  onClick={() => handleSwitchMode('admin')}
-                  className="text-amber-400/80 hover:text-amber-300 text-xs font-semibold underline block mt-2 cursor-pointer"
-                >
-                  🔒 Store Owner / Admin App Login ↗
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -848,6 +880,7 @@ export default function App() {
       {/* Product Details Modal */}
       <ProductDetailsModal
         product={selectedProduct}
+        settings={settings}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
         onBuyNow={handleBuyNow}
@@ -914,6 +947,7 @@ export default function App() {
           onClose={() => setIsOfferModalOpen(false)}
         />
       )}
+
     </div>
   );
 }

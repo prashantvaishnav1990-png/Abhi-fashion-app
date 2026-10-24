@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Star,
@@ -36,19 +36,29 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onBuyNow,
   onDeleteProduct,
 }) => {
-  if (!product) return null;
-
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState(
-    product.sizes.length > 0 ? product.sizes[0] : 'Standard'
+    product?.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Standard'
   );
   const [selectedColor, setSelectedColor] = useState<string | undefined>(
-    product.colors && product.colors.length > 0 ? product.colors[0] : undefined
+    product?.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
   const [quantity, setQuantity] = useState(1);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [addedNotice, setAddedNotice] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Sync selected size/color if product changes
+  useEffect(() => {
+    if (product) {
+      setSelectedSize(product.sizes.length > 0 ? product.sizes[0] : 'Standard');
+      setSelectedColor(product.colors && product.colors.length > 0 ? product.colors[0] : undefined);
+      setSelectedImageIndex(0);
+      setQuantity(1);
+    }
+  }, [product]);
+
+  if (!product) return null;
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 4;
@@ -68,8 +78,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
     onBuyNow(product, selectedSize, quantity, selectedColor);
   };
 
-  // Monthly EMI estimate (e.g. 3 months)
-  const monthlyEmi = Math.round(product.sellingPrice / 3);
+  // Monthly EMI estimate: 33% down payment, remaining split in max 3 months
+  const emiThreshold = settings?.emiMinAmount || 5000;
+  const downPayment = Math.round(product.sellingPrice * 0.33);
+  const remainingFinanced = product.sellingPrice - downPayment;
+  const monthlyEmi = Math.round(remainingFinanced / 3);
 
   return (
     <>
@@ -196,10 +209,10 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <div className="mt-2.5 pt-2.5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                   <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
                     <CreditCard className="w-4 h-4 text-amber-400" />
-                    {product.sellingPrice >= 3000 ? (
-                      <span>EMI starts from ₹{monthlyEmi}/month (Max 3 Months)</span>
+                    {product.sellingPrice >= emiThreshold ? (
+                      <span>EMI: 33% Down (₹{downPayment.toLocaleString('en-IN')}) + ₹{monthlyEmi.toLocaleString('en-IN')}/mo (Max 3 Mo.)</span>
                     ) : (
-                      <span>EMI / Mandate on orders ₹3,000+ (Max 3 Mo.)</span>
+                      <span>Easy EMI on cart ₹5,000+ (33% Down • Max 3 Mo.)</span>
                     )}
                   </div>
                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
@@ -387,15 +400,39 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               </button>
             </div>
 
-            {/* Easy EMI Callout Box */}
-            <div className="mb-4 p-3 rounded-2xl bg-amber-950/20 border border-amber-500/30 text-xs text-slate-300">
-              <div className="flex items-center gap-2 text-amber-400 font-bold mb-1">
-                <CreditCard className="w-4 h-4" />
-                <span>Easy EMI Available (किस्त पर कपड़े)</span>
+            {/* 10 Minute Express Delivery Callout */}
+            <div className="mb-3.5 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs text-slate-200">
+              <div className="flex items-center gap-2 text-amber-300 font-black mb-1">
+                <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span>⚡ 10 MINUTE DELIVERY (छुईखदान लोकल)</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  FREE
+                </span>
               </div>
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                Aap bina kisi jhanjhat ke easy monthly installments (किस्त) par khareed sakte hain. Checkout par "Easy EMI" chunein!
+                Chhuikhadan (491885) ke sabhi mohallon me order confirm hone ke <strong>10 minute ke andar</strong> aapke ghar par delivery ki jayegi!
               </p>
+            </div>
+
+            {/* Payment & EMI Callout Box */}
+            <div className="mb-4 p-3 rounded-2xl bg-slate-900/90 border border-slate-700 text-xs text-slate-300 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span>Card Payment & Credit Card EMI</span>
+                </div>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
+                  Major Banks
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Debit Card (ATM), Credit Card (Visa, RuPay, MasterCard) ya <strong>Credit Card EMI</strong> (HDFC, SBI, ICICI, Axis, Kotak) se aasan kiston par khareedein. Saath hi <strong>Kist Pe (किस्त पे) Easy EMI (33% Down Payment)</strong> aur <strong>Razorpay</strong> Gateway bhi uplabdh hai.
+              </p>
+              {product.sellingPrice >= 3000 && (
+                <div className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-500/20">
+                  💳 Credit Card EMI starts at approx <strong>₹{Math.round(product.sellingPrice / 3)}/mo</strong> (3 Months)
+                </div>
+              )}
             </div>
 
             {/* Description */}
@@ -415,12 +452,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <span>100% Genuine</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Truck className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Express Delivery</span>
+                <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>⚡ 10 Min Delivery</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Easy Size Exchange</span>
+                <CreditCard className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>Cards & EMI Accepted</span>
               </div>
             </div>
 

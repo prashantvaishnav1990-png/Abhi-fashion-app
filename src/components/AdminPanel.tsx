@@ -43,6 +43,7 @@ import {
   CreditCard,
   Copy,
   MessageCircle,
+  QrCode,
 } from 'lucide-react';
 import {
   Banner,
@@ -57,6 +58,8 @@ import { StoreService } from '../services/storeStorage';
 import { NotificationService, NotificationStatus } from '../services/notificationService';
 import { getColorHex, getHdImageUrl, POPULAR_COLORS } from '../utils/productHelpers';
 import { HDImageLightbox } from './HDImageLightbox';
+import { PosterQrModal } from './PosterQrModal';
+import { PaymentGatewayService } from '../services/paymentGatewayService';
 
 interface AdminPanelProps {
   products: Product[];
@@ -139,6 +142,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedUpiOrderId, setCopiedUpiOrderId] = useState<string | null>(null);
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
 
   // Load push status & notification config on mount or tab change
   const refreshNotificationData = async () => {
@@ -1045,6 +1049,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
 
+                  {/* Razorpay or Kist Pe Order Indicators */}
+                  {(o.razorpayPaymentId || o.kistPeTransactionId) && (
+                    <div className="mt-2 p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs flex flex-wrap items-center justify-between gap-2">
+                      {o.razorpayPaymentId && (
+                        <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Razorpay Payment ID: <span className="font-mono text-white select-all">{o.razorpayPaymentId}</span></span>
+                        </div>
+                      )}
+                      {o.kistPeTransactionId && (
+                        <div className="flex items-center gap-1.5 text-amber-300 font-bold">
+                          <Clock className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Kist Pe Down Payment UTR: <span className="font-mono text-white select-all">{o.kistPeTransactionId}</span></span>
+                        </div>
+                      )}
+                      <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-black border border-emerald-500/30">
+                        {o.razorpayPaymentId ? 'Paid via Razorpay' : '33% Down Payment Verified'}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Items summary */}
                   <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-2 text-[11px]">
                     {o.items.map((it, idx) => (
@@ -1391,25 +1416,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-850">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-850">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                          Minimum Order for EMI / Mandate (₹)
+                          Minimum Order for EMI (₹)
                         </label>
                         <input
                           type="number"
                           min={1000}
                           step={500}
-                          value={localSettings.emiMinAmount || 3000}
+                          value={localSettings.emiMinAmount || 5000}
                           onChange={(e) =>
                             setLocalSettings({
                               ...localSettings,
-                              emiMinAmount: Number(e.target.value) || 3000,
+                              emiMinAmount: Number(e.target.value) || 5000,
                             })
                           }
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
                         />
-                        <span className="text-[10px] text-slate-400">Current: ₹3,000 minimum</span>
+                        <span className="text-[10px] text-slate-400">Current: ₹5,000 minimum</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Minimum Down Payment (%)
+                        </label>
+                        <input
+                          type="number"
+                          min={10}
+                          max={100}
+                          step={1}
+                          value={localSettings.emiDownPaymentPercent || 33}
+                          onChange={(e) =>
+                            setLocalSettings({
+                              ...localSettings,
+                              emiDownPaymentPercent: Number(e.target.value) || 33,
+                            })
+                          }
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
+                        />
+                        <span className="text-[10px] text-slate-400">Current: 33% minimum</span>
                       </div>
 
                       <div>
@@ -1433,10 +1479,266 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[11px] text-amber-300 leading-relaxed">
-                      💡 <strong>Easy EMI Process:</strong> Customer order place karte waqt apna UPI ID daalega aur tenure (Maximum 3 mahine) chunega. Minimum order ₹3,000 hona zaroori hai. Admin orders list ya realtime notification se Customer ka UPI ID copy karke apne UPI App (PhonePe / GPay / Paytm / Merchant Mandate) se customer ko monthly request bhej sakta hai.
+                      💡 <strong>Easy EMI Policy:</strong> Minimum purchase amount ₹5,000 hona zaroori hai. Customer ko minimum 33% down payment upfront pay karna hota hai aur bacha hua balance maximum 3 mahine ki 0% interest kiston me chukana hota hai. Order aane par Customer ka UPI ID aapko dashboard aur WhatsApp par turant milta hai.
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Debit/Credit Card & Credit Card EMI Settings */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span className="font-bold text-white text-sm">
+                    Debit / Credit Card & Bank EMI Settings (कार्ड पेमेंट & क्रेडिट कार्ड किस्त)
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
+                  Payment Gateway / POS
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localSettings.isCardPaymentAvailable !== false}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        isCardPaymentAvailable: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-amber-400 focus:ring-amber-400"
+                  />
+                  <div>
+                    <span className="font-bold text-white block">Debit & Credit Cards</span>
+                    <span className="text-[10px] text-slate-400">Accept Visa, RuPay, MasterCard, Maestro</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localSettings.isCreditCardEmiAvailable !== false}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        isCreditCardEmiAvailable: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-amber-400 focus:ring-amber-400"
+                  />
+                  <div>
+                    <span className="font-bold text-white block">Credit Card EMI</span>
+                    <span className="text-[10px] text-slate-400">HDFC, SBI, ICICI, Axis, Kotak Bank EMI</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Credit Card EMI Minimum Order Value (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={1000}
+                    step={500}
+                    value={localSettings.creditCardEmiMinAmount || 3000}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        creditCardEmiMinAmount: Number(e.target.value),
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400"
+                  />
+                  <span className="text-[10px] text-slate-400">Standard bank minimum limit ₹3,000</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Card Gateway / Swipe Machine Mode
+                  </label>
+                  <input
+                    type="text"
+                    value={localSettings.cardGatewayName || 'Razorpay / Card POS Terminal'}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        cardGatewayName: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400"
+                    placeholder="e.g. Razorpay, Paytm, PineLabs POS"
+                  />
+                </div>
+              </div>
+
+              {/* Razorpay Gateway Link Section */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="font-bold text-white text-xs">
+                      Razorpay Gateway Link (रेज़रपे लिंक)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Live / Test Mode
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Razorpay Key ID (rzp_live_... ya rzp_test_...)
+                    </label>
+                    <input
+                      type="text"
+                      value={localSettings.razorpayKeyId || 'rzp_test_abhifashion'}
+                      onChange={(e) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          razorpayKeyId: e.target.value,
+                          paymentGatewayKeyId: e.target.value,
+                        })
+                      }
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden focus:border-amber-400"
+                      placeholder="rzp_test_abhifashion ya rzp_live_..."
+                    />
+                    <span className="text-[10px] text-slate-400">
+                      Aapka Razorpay Dashboard Key ID. Default test key se direct verify kiya ja sakta hai.
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        PaymentGatewayService.openRazorpayPayment({
+                          amount: 999,
+                          customerName: 'Test Customer (Abhishek Store)',
+                          customerMobile: localSettings.whatsappNumber || '9826198421',
+                          settings: localSettings,
+                          description: 'Test Razorpay Payment Popup',
+                          onSuccess: (pId) => {
+                            alert(`Razorpay Gateway Test Successful! Payment ID: ${pId}`);
+                          },
+                        });
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Test Razorpay Gateway</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kist Pe App (किस्त पे) Settings */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-emerald-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-emerald-400" />
+                    <span className="font-bold text-white text-xs">
+                      Kist Pe App Link (किस्त पे ऐप & UPI AutoPay)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                    Kist Pe Partner Active
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Kist Pe Merchant UPI ID (33% Down Payment प्राप्त करने हेतु)
+                    </label>
+                    <input
+                      type="text"
+                      value={localSettings.kistPeUpiId || '9826198421@kistpe'}
+                      onChange={(e) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          kistPeUpiId: e.target.value,
+                          collectUpiId: e.target.value,
+                        })
+                      }
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden focus:border-emerald-400"
+                      placeholder="e.g. 9826198421@kistpe ya 9826198421@okbizaxis"
+                    />
+                    <span className="text-[10px] text-slate-400">
+                      Grahak ke liye is UPI ID ka dynamic QR code banta hai.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Kist Pe Merchant / Partner ID
+                    </label>
+                    <input
+                      type="text"
+                      value={localSettings.kistPeMerchantId || 'KP-ABHI-9826'}
+                      onChange={(e) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          kistPeMerchantId: e.target.value,
+                        })
+                      }
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden focus:border-emerald-400"
+                      placeholder="e.g. KP-ABHI-9826"
+                    />
+                    <span className="text-[10px] text-slate-400">
+                      Aapka Kist Pe dukaandar referral / merchant code.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-[11px] text-cyan-200 leading-relaxed space-y-1.5">
+                <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span>कार्ड और किस्त पे (Kist Pe) पेमेंट की पूरी जानकारी:</span>
+                </div>
+                <div>
+                  • <strong>क्या हम कार्ड से पेमेंट ले सकते हैं?</strong> हाँ! ग्राहक किसी भी बैंक के डेबिट कार्ड (ATM कार्ड) या क्रेडिट कार्ड (Visa, RuPay, MasterCard) से Razorpay गेटवे के ज़रिये 100% सुरक्षित पेमेंट कर सकते हैं।
+                </div>
+                <div>
+                  • <strong>क्या क्रेडिट कार्ड से EMI में सामान बेच सकते हैं?</strong> बिल्कुल! HDFC, SBI, ICICI, Axis, Kotak आदि प्रमुख बैंकों की 3 से 12 महीने की क्रेडिट कार्ड किस्त (EMI) उपलब्ध है। बैंक पूरा भुगतान तुरंत आपकी दुकान के खाते में कर देता है।
+                </div>
+                <div>
+                  • <strong>Kist Pe (किस्त पे) लिंकेज:</strong> ₹5,000 से ऊपर के ऑर्डर पर ग्राहक 33% डाउन पेमेंट Kist Pe क्यूआर कोड / यूपीआई से तुरंत कर सकता है और बची हुई 2-3 महीने की किस्तों का पूरा ब्यौरा व कस्टमर UPI ID आपके एडमिन व व्हाट्सएप पर ऑटोमैटिक आ जाता है।
+                </div>
+              </div>
+            </div>
+
+            {/* Store Poster & Barcode Generator */}
+            <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-xs space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
+                  <QrCode className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-sm">Store Poster & App Download Barcode (Flex / Standee)</h4>
+                  <p className="text-slate-400 text-[11px]">
+                    Dukaan counter ya banner ke liye high-resolution Barcode (QR Code) download karein. Grahak scan karte hi seedha app download kar sakenge.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPosterModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-md"
+                >
+                  <QrCode className="w-4 h-4 text-slate-950" />
+                  <span>Poster Barcode Dekhein & Download Karein (PNG)</span>
+                </button>
               </div>
             </div>
 
@@ -2570,6 +2872,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onClose={() => setPreviewLightboxUrl(null)}
         />
       )}
+
+      {/* Store Poster & Barcode Modal */}
+      <PosterQrModal
+        isOpen={isPosterModalOpen}
+        onClose={() => setIsPosterModalOpen(false)}
+        settings={localSettings}
+        onSaveSettings={(updated) => {
+          setLocalSettings(updated);
+          onSaveSettings(updated);
+        }}
+      />
     </div>
   );
 };

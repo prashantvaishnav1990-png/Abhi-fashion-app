@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Printer,
   X,
+  QrCode,
+  CreditCard,
 } from 'lucide-react';
 import {
   Banner,
@@ -30,6 +32,7 @@ import {
   StoreSettings,
 } from '../types';
 import { AdminPanel } from './AdminPanel';
+import { PosterQrModal } from './PosterQrModal';
 import { StoreService, subscribeToNewOrders, subscribeToStore } from '../services/storeStorage';
 import { NotificationService, playOrderAlertSound } from '../services/notificationService';
 
@@ -55,6 +58,7 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [pushStatus, setPushStatus] = useState<{ supported: boolean; isSubscribed: boolean; permission: string } | null>(null);
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
 
   // Load store data
   const refreshData = () => {
@@ -245,6 +249,15 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
                 <Share2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Share on WA</span>
               </button>
+
+              <button
+                onClick={() => setIsPosterModalOpen(true)}
+                title="App Download Barcode & Poster Generator"
+                className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              >
+                <QrCode className="w-3.5 h-3.5 text-slate-950" />
+                <span>Poster Barcode</span>
+              </button>
             </div>
 
             {/* Switch to Customer App Button */}
@@ -368,6 +381,27 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
                   {incomingOrder.customer.address}, {incomingOrder.customer.city}
                 </span>
               </div>
+
+              {incomingOrder.razorpayPaymentId && (
+                <div className="bg-cyan-950/50 border border-cyan-500/40 p-2.5 rounded-xl text-xs flex items-center justify-between text-cyan-200">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Razorpay Payment ID:</span>
+                  </span>
+                  <span className="font-mono text-white select-all text-xs">{incomingOrder.razorpayPaymentId}</span>
+                </div>
+              )}
+
+              {incomingOrder.kistPeTransactionId && (
+                <div className="bg-amber-950/50 border border-amber-500/40 p-2.5 rounded-xl text-xs flex items-center justify-between text-amber-200">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Kist Pe Down Payment UTR:</span>
+                  </span>
+                  <span className="font-mono text-white select-all text-xs">{incomingOrder.kistPeTransactionId}</span>
+                </div>
+              )}
+
               {(incomingOrder.emiDetails || incomingOrder.customer.upiId) && (
                 <div className="bg-amber-950/40 border border-amber-500/50 p-3 rounded-2xl text-amber-200 text-xs space-y-2.5">
                   <div className="flex items-center justify-between">
@@ -467,6 +501,14 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
           </div>
         </div>
       )}
+
+      {/* Store Poster & Barcode Modal */}
+      <PosterQrModal
+        isOpen={isPosterModalOpen}
+        onClose={() => setIsPosterModalOpen(false)}
+        settings={settings}
+        onSaveSettings={(updated) => setSettings(updated)}
+      />
     </div>
   );
 };

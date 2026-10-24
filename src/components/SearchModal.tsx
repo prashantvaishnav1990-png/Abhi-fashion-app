@@ -20,8 +20,6 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onAddToCart,
   onBuyNow,
 }) => {
-  if (!isOpen) return null;
-
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [selectedSize, setSelectedSize] = useState<string>('all');
@@ -71,6 +69,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   }, [products, query, selectedCategory, selectedSize, priceBracket, sortBy]);
+
+  if (!isOpen) return null;
 
   return (
     <div

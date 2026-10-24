@@ -1171,12 +1171,45 @@ http://localhost:3000/admin`;
   // Vite middleware setup
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
+      configFile: path.resolve(process.cwd(), 'vite.config.ts'),
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+        hmr: false,
       },
       appType: 'spa',
     });
+
+    // In AI Studio preview environment, HMR is disabled.
+    // Intercept /@vite/client to prevent WebSocket creation attempts completely.
+    app.use('/@vite/client', (req, res, next) => {
+      const originalWrite = res.write;
+      const originalEnd = res.end;
+      const chunks: Buffer[] = [];
+
+      res.write = function (chunk: any) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        return true;
+      } as any;
+
+      res.end = function (chunk?: any, ...args: any[]) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        let body = Buffer.concat(chunks).toString('utf8');
+
+        // Neutralize all WebSocket instantiation inside @vite/client
+        body = body.replace(
+          /new WebSocket\([^)]*\)/g,
+          '({ readyState: 1, OPEN: 1, send() {}, close() {}, addEventListener(e, fn) { if (e === "open") setTimeout(() => { try { fn({ type: "open" }); } catch {} }, 0); }, removeEventListener() {} })'
+        );
+
+        res.write = originalWrite;
+        res.end = originalEnd;
+        res.setHeader('Content-Length', Buffer.byteLength(body));
+        return (res as any).end(body, ...args);
+      } as any;
+
+      next();
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');

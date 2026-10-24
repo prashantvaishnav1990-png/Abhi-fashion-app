@@ -32,8 +32,6 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   onLoginSuccess,
   onLogout,
 }) => {
-  if (!isOpen) return null;
-
   const [step, setStep] = useState<'enter_phone' | 'enter_otp'>(
     currentCustomer ? 'enter_phone' : 'enter_phone'
   );
@@ -89,6 +87,8 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
       setErrorMsg(err.message || 'Login karne me samasya aayi. Kripya punah prayas karein.');
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div

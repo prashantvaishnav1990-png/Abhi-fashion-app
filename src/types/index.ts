@@ -38,7 +38,7 @@ export interface CartItem {
   quantity: number;
 }
 
-export type PaymentMethod = 'cod' | 'online' | 'emi' | 'upi_mandate';
+export type PaymentMethod = 'cod' | 'online' | 'card' | 'card_emi' | 'emi' | 'upi_mandate';
 
 export type OrderStatus =
   | 'Pending'
@@ -57,6 +57,8 @@ export interface CustomerAddress {
   pincode: string;
   upiId?: string;
   landmark?: string;
+  deliveryZone?: 'chhuikhadan' | 'under_10km' | 'above_10km';
+  distanceKm?: number;
 }
 
 export interface CustomerProfile {
@@ -103,11 +105,18 @@ export interface Order {
   emiDetails?: {
     tenure: string;
     monthlyInstallment: number;
+    downPaymentAmount?: number;
+    downPaymentPercent?: number;
+    financedAmount?: number;
     providerNote: string;
     mandateUpiId?: string;
-    mandateType?: 'Collect App' | 'UPI AutoPay' | 'BharatPe' | 'General BNPL';
+    mandateType?: string;
     mandateStatus?: string;
+    creditCardBank?: string;
+    cardLast4?: string;
   };
+  razorpayPaymentId?: string;
+  kistPeTransactionId?: string;
 }
 
 export interface Banner {
@@ -128,13 +137,17 @@ export interface StoreSettings {
   whatsappNumber: string;
   supportPhone: string;
   deliveryCharges: number;
+  deliveryChhuikhadanFee: number;
+  deliveryUnder10kmFee: number;
+  codMaxDistanceKm: number;
   freeDeliveryThreshold: number;
   isCodAvailable: boolean;
   isOnlinePaymentAvailable: boolean;
   isEmiAvailable: boolean;
   emiMinAmount: number;
+  emiDownPaymentPercent: number;
   adminPin: string;
-  // Collect App / UPI Mandate AutoPay Settings
+  // EMI / UPI Mandate Settings
   isCollectEmiAvailable?: boolean;
   collectUpiId?: string;
   collectAppName?: string;
@@ -143,4 +156,21 @@ export interface StoreSettings {
   isUpiMandateAvailable?: boolean;
   upiMandateVpa?: string;
   upiMandateProvider?: string;
+  // Card & Credit Card EMI Settings
+  isCardPaymentAvailable?: boolean;
+  isCreditCardEmiAvailable?: boolean;
+  cardGatewayName?: string;
+  paymentGatewayKeyId?: string;
+  creditCardEmiMinAmount?: number;
+  // Razorpay Gateway Settings
+  razorpayEnabled?: boolean;
+  razorpayKeyId?: string;
+  // Kist Pe (किस्त पे) App Settings
+  kistPeEnabled?: boolean;
+  kistPeMerchantId?: string;
+  kistPeUpiId?: string;
+  kistPeMerchantLink?: string;
+  kistPeAppName?: string;
+  // Poster Barcode & App Download Public URL
+  appPublicUrl?: string;
 }

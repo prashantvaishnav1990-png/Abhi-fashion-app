@@ -256,21 +256,40 @@ export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'ABHI FASHION',
   storeTagline: "Men's Luxury & Streetwear Store",
   storeAddress: 'Bazar Line, Chhuikhadan',
-  whatsappNumber: '919876543210',
-  supportPhone: '+91 98765 43210',
-  deliveryCharges: 60,
-  freeDeliveryThreshold: 999,
+  whatsappNumber: '9826198421',
+  supportPhone: '+91 98261 98421',
+  deliveryCharges: 50,
+  deliveryChhuikhadanFee: 0, // Free for Chhuikhadan
+  deliveryUnder10kmFee: 50,   // ₹50 for under 10 km
+  codMaxDistanceKm: 4,        // 4 km and above: Prepaid only!
+  freeDeliveryThreshold: 99999, // Specific distance-based rules take precedence
   isCodAvailable: true,
   isOnlinePaymentAvailable: true,
   isEmiAvailable: true,
-  emiMinAmount: 3000,
+  emiMinAmount: 5000,         // ₹5,000 Minimum purchase for EMI
+  emiDownPaymentPercent: 33,  // 33% Minimum Down Payment
   adminPin: '1234',
   isCollectEmiAvailable: true,
   collectUpiId: '9826198421@okbizaxis',
   collectAppName: 'Easy EMI / UPI AutoPay',
   collectMerchantLink: 'https://collect.chat/upi',
-  emiTenures: [2, 3],
+  emiTenures: [2, 3],         // Max 3 Months
   isUpiMandateAvailable: true,
   upiMandateVpa: '9826198421@okbizaxis',
   upiMandateProvider: 'Easy EMI / UPI AutoPay',
+  isCardPaymentAvailable: true,
+  isCreditCardEmiAvailable: true,
+  cardGatewayName: 'Razorpay / Card POS Terminal',
+  paymentGatewayKeyId: 'rzp_test_abhifashion',
+  creditCardEmiMinAmount: 3000,
+  // Razorpay Gateway
+  razorpayEnabled: true,
+  razorpayKeyId: 'rzp_test_abhifashion',
+  // Kist Pe (किस्त पे) App Settings
+  kistPeEnabled: true,
+  kistPeMerchantId: 'KP-ABHI-9826',
+  kistPeUpiId: '9826198421@kistpe',
+  kistPeMerchantLink: 'upi://pay?pa=9826198421@kistpe&pn=ABHI%20FASHION&cu=INR&tn=KistPe%20Down%20Payment',
+  kistPeAppName: 'Kist Pe Merchant (किस्त पे)',
+  appPublicUrl: 'https://ais-pre-3ikhphexvv4zk22tmwzsu7-644693391483.asia-east1.run.app',
 };
