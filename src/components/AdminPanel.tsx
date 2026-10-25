@@ -141,11 +141,11 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
-  products,
-  categories,
-  banners,
-  orders,
-  settings,
+  products = [],
+  categories = [],
+  banners = [],
+  orders = [],
+  settings = StoreService.getSettings(),
   onSaveProduct,
   onDeleteProduct,
   onSaveCategory,
@@ -157,6 +157,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onResetDatabase,
   onCloseAdmin,
 }) => {
+  // Safe default settings fallback
+  const defaultStoreSettings = StoreService.getSettings();
+  const safeSettings: StoreSettings = {
+    ...defaultStoreSettings,
+    ...(settings || {}),
+  };
+
+  // Safe collections
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeBanners = Array.isArray(banners) ? banners : [];
+
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [enteredPin, setEnteredPin] = useState('');
@@ -173,9 +186,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [pushFeedback, setPushFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
   const [isSendingPushTest, setIsSendingPushTest] = useState(false);
 
-  const [notifyConfig, setNotifyConfig] = useState({
-    ownerPhone: settings.supportPhone || '9826198421',
-    ownerWhatsApp: settings.whatsappNumber || '9826198421',
+  const [notifyConfig, setNotifyConfig] = useState(() => ({
+    ownerPhone: safeSettings?.supportPhone || safeSettings?.whatsappNumber || '9826198421',
+    ownerWhatsApp: safeSettings?.whatsappNumber || safeSettings?.supportPhone || '9826198421',
     enablePush: true,
     enableSms: true,
     enableWhatsApp: true,
@@ -190,7 +203,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     hasTwilioConfig: false,
     hasCallMeBotKey: false,
     pushSubscribedDevices: 0,
-  });
+  }));
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [configToast, setConfigToast] = useState(false);
 
@@ -313,9 +326,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
 
-  // Settings local state
-  const [localSettings, setLocalSettings] = useState<StoreSettings>({ ...settings });
+  // Settings local state with complete fallback
+  const [localSettings, setLocalSettings] = useState<StoreSettings>(() => ({
+    ...StoreService.getSettings(),
+    ...(settings || {}),
+  }));
   const [settingsSavedToast, setSettingsSavedToast] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings((prev) => ({
+        ...StoreService.getSettings(),
+        ...prev,
+        ...settings,
+      }));
+    }
+  }, [settings]);
 
   // Cloud Database Sync State
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
@@ -334,11 +360,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setTimeout(() => setSyncStatusMsg(null), 4000);
   };
 
-  // Handle PIN Login
+  // Handle PIN Login (Supports configured PIN and default 1234)
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEntered = enteredPin.trim();
-    const correctPin = String(settings?.adminPin || '1234').trim();
+    const correctPin = String(safeSettings?.adminPin || '1234').trim();
     if (cleanEntered === correctPin || cleanEntered === '1234') {
       setIsAuthenticated(true);
       setPinError(false);
@@ -347,12 +373,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setEnteredPin('');
     }
   };
-
-  // Safe collections
-  const safeOrders = Array.isArray(orders) ? orders : [];
-  const safeProducts = Array.isArray(products) ? products : [];
-  const safeCategories = Array.isArray(categories) ? categories : [];
-  const safeBanners = Array.isArray(banners) ? banners : [];
 
   // Metrics
   const totalOrders = safeOrders.length;
@@ -378,7 +398,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             Admin Portal
           </h2>
           <p className="text-xs text-slate-400 mb-6">
-            Enter Admin PIN to manage {settings.storeName} catalog, orders and settings.
+            Enter Admin PIN to manage {safeSettings.storeName || 'ABHI FASHION'} catalog, orders and settings.
           </p>
 
           <form onSubmit={handlePinSubmit} className="space-y-4">
@@ -551,7 +571,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 PRO
               </span>
             </h1>
-            <p className="text-xs text-slate-400">{settings.storeName} • {settings.storeAddress}</p>
+            <p className="text-xs text-slate-400">{safeSettings.storeName || 'ABHI FASHION'} • {safeSettings.storeAddress || 'Bazar Line, Chhuikhadan'}</p>
           </div>
         </div>
 
@@ -576,11 +596,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none border-b border-slate-800">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
-          { id: 'products', label: `Products (${products.length})`, icon: Package },
-          { id: 'categories', label: `Categories (${categories.length})`, icon: FolderPlus },
-          { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingBag },
+          { id: 'products', label: `Products (${safeProducts.length})`, icon: Package },
+          { id: 'categories', label: `Categories (${safeCategories.length})`, icon: FolderPlus },
+          { id: 'orders', label: `Orders (${safeOrders.length})`, icon: ShoppingBag },
           { id: 'notifications', label: 'Push & SMS Alerts', icon: BellRing },
-          { id: 'banners', label: `Banners (${banners.length})`, icon: Sparkles },
+          { id: 'banners', label: `Banners (${safeBanners.length})`, icon: Sparkles },
           { id: 'settings', label: 'Store Settings', icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -745,7 +765,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-black text-white uppercase tracking-wider">
-                Product Catalog ({products.length})
+                Product Catalog ({safeProducts.length})
               </h2>
               <p className="text-xs text-slate-400">Add, edit prices, stock quantities & images</p>
             </div>
@@ -927,7 +947,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-black text-white uppercase tracking-wider">
-                Categories Management ({categories.length})
+                Categories Management ({safeCategories.length})
               </h2>
               <p className="text-xs text-slate-400">
                 Naye categories add karein, organize karein aur products assign karein
@@ -968,7 +988,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       .replace(/-+/g, '-')
                       .replace(/^-|-$/g, '') || `cat-${Date.now()}`;
 
-                  const exists = categories.some((c) => c.id === slug || c.name.toLowerCase() === cleanName.toLowerCase());
+                  const exists = safeCategories.some((c) => c.id === slug || c.name.toLowerCase() === cleanName.toLowerCase());
                   if (exists) {
                     setCatTabError('This category already exists');
                     return;
@@ -1000,8 +1020,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* Categories Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {categories.map((cat) => {
-              const productCount = products.filter((p) => p.category === cat.id).length;
+            {safeCategories.map((cat) => {
+              const productCount = safeProducts.filter((p) => p.category === cat.id).length;
               return (
                 <div
                   key={cat.id}
@@ -1096,10 +1116,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-black text-amber-400 text-sm">
-                          {o.orderNumber}
+                          {o?.orderNumber || 'ORD'}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {new Date(o.createdAt).toLocaleString('en-IN')}
+                          {o?.createdAt ? new Date(o.createdAt).toLocaleString('en-IN') : 'Recent'}
                         </span>
                       </div>
                       <p className="font-bold text-white text-xs mt-0.5">
@@ -1274,7 +1294,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
           <div className="space-y-3">
-            {banners.map((banner) => (
+            {safeBanners.map((banner) => (
               <div
                 key={banner.id}
                 className="p-4 rounded-2xl bg-[#111827] border border-slate-800 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between"
@@ -1616,7 +1636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           Maximum EMI Tenure (Months)
                         </label>
                         <select
-                          value={Math.max(...(localSettings.emiTenures || [3])) <= 3 ? 3 : 3}
+                          value={Math.max(...(Array.isArray(localSettings?.emiTenures) && localSettings.emiTenures.length > 0 ? localSettings.emiTenures : [3])) <= 3 ? 3 : 3}
                           onChange={() => {
                             setLocalSettings({
                               ...localSettings,

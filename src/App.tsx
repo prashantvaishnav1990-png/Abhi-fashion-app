@@ -60,6 +60,7 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PosterQrModal } from './components/PosterQrModal';
 import { AppDownloadView } from './components/AppDownloadView';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 export default function App() {
   // App Mode State: 'customer' (Client Storefront) vs 'admin' (Store Owner App)
@@ -395,7 +396,12 @@ export default function App() {
   if (appMode === 'admin') {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pt-[env(safe-area-inset-top,0px)]">
-        <AdminApp onSwitchToCustomerApp={() => handleSwitchMode('customer')} />
+        <GlobalErrorBoundary
+          fallbackTitle="Admin App Recovery"
+          onReset={() => handleSwitchMode('admin')}
+        >
+          <AdminApp onSwitchToCustomerApp={() => handleSwitchMode('customer')} />
+        </GlobalErrorBoundary>
       </div>
     );
   }

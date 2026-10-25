@@ -33,6 +33,7 @@ import {
 } from '../types';
 import { AdminPanel } from './AdminPanel';
 import { PosterQrModal } from './PosterQrModal';
+import { GlobalErrorBoundary } from './GlobalErrorBoundary';
 import { StoreService, subscribeToNewOrders, subscribeToStore } from '../services/storeStorage';
 import { NotificationService, playOrderAlertSound } from '../services/notificationService';
 
@@ -42,11 +43,11 @@ interface AdminAppProps {
 
 export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => {
   // Store Data
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [settings, setSettings] = useState<StoreSettings>(StoreService.getSettings());
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => StoreService.getProducts());
+  const [categories, setCategories] = useState<Category[]>(() => StoreService.getCategories());
+  const [banners, setBanners] = useState<Banner[]>(() => StoreService.getBanners());
+  const [settings, setSettings] = useState<StoreSettings>(() => StoreService.getSettings());
+  const [orders, setOrders] = useState<Order[]>(() => StoreService.getOrders());
 
   // Sound and Alert State
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
@@ -301,23 +302,29 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
 
       {/* Standalone Admin Panel Container */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
-        <AdminPanel
-          products={products}
-          categories={categories}
-          banners={banners}
-          orders={orders}
-          settings={settings}
-          onSaveProduct={(p) => StoreService.saveProduct(p)}
-          onDeleteProduct={(id) => StoreService.deleteProduct(id)}
-          onSaveCategory={(c) => StoreService.saveCategory(c)}
-          onDeleteCategory={(id) => StoreService.deleteCategory(id)}
-          onUpdateOrderStatus={(orderId, status) => StoreService.updateOrderStatus(orderId, status)}
-          onSaveBanner={(b) => StoreService.saveBanner(b)}
-          onDeleteBanner={(id) => StoreService.deleteBanner(id)}
-          onSaveSettings={(s) => StoreService.saveSettings(s)}
-          onResetDatabase={() => StoreService.resetDatabase()}
-          onCloseAdmin={onSwitchToCustomerApp}
-        />
+        <GlobalErrorBoundary
+          fallbackTitle="Admin Management Portal"
+          fallbackMessage="Admin panel loading ya data processing me issue ko safely catch kiya gaya hai. Reload karke retry karein."
+          onReset={refreshData}
+        >
+          <AdminPanel
+            products={products}
+            categories={categories}
+            banners={banners}
+            orders={orders}
+            settings={settings}
+            onSaveProduct={(p) => StoreService.saveProduct(p)}
+            onDeleteProduct={(id) => StoreService.deleteProduct(id)}
+            onSaveCategory={(c) => StoreService.saveCategory(c)}
+            onDeleteCategory={(id) => StoreService.deleteCategory(id)}
+            onUpdateOrderStatus={(orderId, status) => StoreService.updateOrderStatus(orderId, status)}
+            onSaveBanner={(b) => StoreService.saveBanner(b)}
+            onDeleteBanner={(id) => StoreService.deleteBanner(id)}
+            onSaveSettings={(s) => StoreService.saveSettings(s)}
+            onResetDatabase={() => StoreService.resetDatabase()}
+            onCloseAdmin={onSwitchToCustomerApp}
+          />
+        </GlobalErrorBoundary>
       </div>
 
       {/* ========================================================================= */}
