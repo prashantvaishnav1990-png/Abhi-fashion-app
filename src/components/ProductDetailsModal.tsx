@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Product, StoreSettings } from '../types';
 import { HDImageLightbox } from './HDImageLightbox';
-import { getColorHex, getHdImageUrl } from '../utils/productHelpers';
+import { getColorHex, getHdImageUrl, getCategoryFallbackImage } from '../utils/productHelpers';
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -127,8 +127,14 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 onClick={() => setIsLightboxOpen(true)}
               >
                 <img
-                  src={getHdImageUrl(images[selectedImageIndex] || images[0])}
+                  src={getHdImageUrl(images[selectedImageIndex] || images[0], product.category)}
                   alt={product.name}
+                  onError={(e) => {
+                    const fallback = getCategoryFallbackImage(product.category);
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
                   className="w-full h-full object-cover object-center transition duration-300 group-hover:scale-105"
                 />
                 {product.discountPercent > 0 && (
@@ -158,7 +164,17 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                           : 'border-slate-800 opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <img src={getHdImageUrl(img)} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={getHdImageUrl(img, product.category)}
+                        alt=""
+                        onError={(e) => {
+                          const fallback = getCategoryFallbackImage(product.category);
+                          if (e.currentTarget.src !== fallback) {
+                            e.currentTarget.src = fallback;
+                          }
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                       <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-[9px] text-white px-1 rounded font-mono">
                         HD
                       </span>

@@ -6,9 +6,9 @@ import { apiUrl } from './apiConfig';
  */
 export async function compressImage(
   file: File | Blob,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.8
+  maxWidth = 900,
+  maxHeight = 900,
+  quality = 0.75
 ): Promise<{ dataUrl: string; blob: Blob }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -71,26 +71,32 @@ export async function uploadImageToServer(
   dataUrlOrBlob: string | Blob,
   filename = 'product.jpg'
 ): Promise<string> {
-  try {
-    let payloadBody: any;
-    let headers: Record<string, string> = {};
+  let fallbackDataUrl = '';
 
+  try {
+    let dataUrlToSend = '';
     if (typeof dataUrlOrBlob === 'string') {
-      payloadBody = JSON.stringify({
-        dataUrl: dataUrlOrBlob,
-        filename,
-      });
-      headers['Content-Type'] = 'application/json';
+      dataUrlToSend = dataUrlOrBlob;
+      fallbackDataUrl = dataUrlOrBlob;
     } else {
-      const formData = new FormData();
-      formData.append('file', dataUrlOrBlob, filename);
-      payloadBody = formData;
+      dataUrlToSend = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(dataUrlOrBlob);
+      });
+      fallbackDataUrl = dataUrlToSend;
     }
 
     const res = await fetch(apiUrl('/api/upload'), {
       method: 'POST',
-      headers,
-      body: payloadBody,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        dataUrl: dataUrlToSend,
+        filename,
+      }),
     });
 
     if (res.ok) {
@@ -100,9 +106,9 @@ export async function uploadImageToServer(
       }
     }
   } catch (err) {
-    console.warn('Direct image upload to server failed, using local compressed data URL:', err);
+    console.warn('Direct image upload to server failed, falling back to local data URL:', err);
   }
 
-  // Fallback to dataUrl if string
-  return typeof dataUrlOrBlob === 'string' ? dataUrlOrBlob : '';
+  // Fallback to dataUrl so the image is NEVER lost
+  return fallbackDataUrl;
 }

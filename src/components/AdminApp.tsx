@@ -363,22 +363,22 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
             <div className="space-y-2 mb-4 bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 text-xs">
               <div className="flex justify-between border-b border-slate-800/80 pb-2">
                 <span className="text-slate-400">Customer Name:</span>
-                <span className="font-black text-white">{incomingOrder.customer.name}</span>
+                <span className="font-black text-white">{incomingOrder?.customer?.name || 'Customer'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-800/80 pb-2">
                 <span className="text-slate-400">Mobile Number:</span>
                 <a
-                  href={`tel:${incomingOrder.customer.mobile}`}
+                  href={`tel:${incomingOrder?.customer?.mobile || ''}`}
                   className="font-bold text-amber-400 hover:underline flex items-center gap-1"
                 >
                   <Phone className="w-3 h-3 text-emerald-400" />
-                  +91 {incomingOrder.customer.mobile}
+                  +91 {incomingOrder?.customer?.mobile || 'No Mobile'}
                 </a>
               </div>
               <div className="flex justify-between border-b border-slate-800/80 pb-2">
                 <span className="text-slate-400">Delivery Address:</span>
                 <span className="font-semibold text-slate-200 text-right max-w-[220px]">
-                  {incomingOrder.customer.address}, {incomingOrder.customer.city}
+                  {incomingOrder?.customer?.address || ''}, {incomingOrder?.customer?.city || 'Chhuikhadan'}
                 </span>
               </div>
 
@@ -419,15 +419,15 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
                     <div className="min-w-0 flex-1">
                       <span className="text-[10px] text-slate-400 block font-semibold">Customer UPI ID (Mandate VPA):</span>
                       <span className="font-mono font-black text-amber-300 text-sm truncate block select-all">
-                        {incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId || 'Not specified'}
+                        {incomingOrder.emiDetails?.mandateUpiId || incomingOrder?.customer?.upiId || 'Not specified'}
                       </span>
                     </div>
 
-                    {(incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId) && (
+                    {(incomingOrder.emiDetails?.mandateUpiId || incomingOrder?.customer?.upiId) && (
                       <button
                         type="button"
                         onClick={() => {
-                          const id = incomingOrder.emiDetails?.mandateUpiId || incomingOrder.customer.upiId || '';
+                          const id = incomingOrder.emiDetails?.mandateUpiId || incomingOrder?.customer?.upiId || '';
                           navigator.clipboard.writeText(id);
                           setCopiedUpi(true);
                           setTimeout(() => setCopiedUpi(false), 2500);

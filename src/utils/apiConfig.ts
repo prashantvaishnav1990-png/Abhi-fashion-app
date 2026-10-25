@@ -41,9 +41,34 @@ export function apiUrl(path: string): string {
 
 export function resolveImageUrl(url: string | undefined): string {
   if (!url || typeof url !== 'string') return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
     return url;
   }
+  // Bundled static assets located in public/assets/ should remain relative so WebView & Vite resolve them locally
+  if (url.startsWith('/assets/')) {
+    return url;
+  }
+
+  // If in web browser with standard origin
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    if (
+      origin &&
+      !origin.includes('localhost') &&
+      !origin.includes('127.0.0.1') &&
+      !origin.includes('capacitor://') &&
+      !origin.startsWith('file:')
+    ) {
+      const cleanPath = url.startsWith('/') ? url : `/${url}`;
+      return `${origin.replace(/\/+$/, '')}${cleanPath}`;
+    }
+  }
+
   const base = getApiBaseUrl();
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
   return `${base}${cleanPath}`;

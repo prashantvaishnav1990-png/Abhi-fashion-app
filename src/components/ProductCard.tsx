@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingBag, Zap, Eye, Check, Sparkles, Trash2 } from 'lucide-react';
 import { Product } from '../types';
-import { getColorHex, getHdImageUrl } from '../utils/productHelpers';
+import { getColorHex, getHdImageUrl, getCategoryFallbackImage } from '../utils/productHelpers';
 
 interface ProductCardProps {
   product: Product;
@@ -21,17 +21,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isDeleteMode = false,
 }) => {
   const [selectedSize, setSelectedSize] = useState<string>(
-    product.sizes.length > 0 ? product.sizes[0] : 'Standard'
+    product?.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Standard'
   );
   const [selectedColor, setSelectedColor] = useState<string | undefined>(
-    product.colors && product.colors.length > 0 ? product.colors[0] : undefined
+    product?.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
   const [justAdded, setJustAdded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 4;
-  const mainImage = product.images && product.images.length > 0 ? product.images[0] : 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600';
+  const isOutOfStock = (product?.stock ?? 0) <= 0;
+  const isLowStock = (product?.stock ?? 0) > 0 && (product?.stock ?? 0) <= 4;
+  const mainImage =
+    product?.images && product.images.length > 0
+      ? product.images[0]
+      : getCategoryFallbackImage(product?.category);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -68,9 +71,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Product Image Area */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-900">
         <img
-          src={getHdImageUrl(mainImage)}
+          src={getHdImageUrl(mainImage, product?.category)}
           alt={product.name}
           loading="lazy"
+          onError={(e) => {
+            const fallback = getCategoryFallbackImage(product?.category);
+            if (e.currentTarget.src !== fallback) {
+              e.currentTarget.src = fallback;
+            }
+          }}
           className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
         />
 

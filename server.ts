@@ -450,15 +450,20 @@ async function startServer() {
   // Image Upload Endpoint (base64 image dataUrl or binary upload)
   app.post('/api/upload', (req, res) => {
     try {
-      const { dataUrl } = req.body;
-      if (!dataUrl || typeof dataUrl !== 'string') {
+      const rawData = req.body?.dataUrl || req.body?.image || req.body?.file;
+      if (!rawData || typeof rawData !== 'string') {
         res.status(400).json({ error: 'dataUrl string required' });
         return;
       }
 
+      let dataUrl = rawData;
+      if (!dataUrl.startsWith('data:')) {
+        dataUrl = `data:image/jpeg;base64,${rawData}`;
+      }
+
       const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       if (!matches || matches.length !== 3) {
-        res.status(400).json({ error: 'Invalid data URL' });
+        res.status(400).json({ error: 'Invalid data URL format' });
         return;
       }
 
@@ -472,6 +477,7 @@ async function startServer() {
       const buffer = Buffer.from(matches[2], 'base64');
 
       fs.writeFileSync(filePath, buffer);
+      console.log(`[UPLOAD] Image saved successfully to ${filePath} (${(buffer.length / 1024).toFixed(1)} KB)`);
       res.json({ success: true, url: `/uploads/${cleanFileName}` });
     } catch (err: any) {
       console.error('Image upload failed:', err);

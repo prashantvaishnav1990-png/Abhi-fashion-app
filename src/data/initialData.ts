@@ -18,7 +18,7 @@ export const INITIAL_CATEGORIES: Category[] = [
   {
     id: 'jeans',
     name: 'Jeans',
-    image: 'https://images.unsplash.com/photo-1542272604-780c96856592?w=600&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
     itemCountLabel: 'Denim Collection',
     description: 'Slim fit, straight stretch and vintage wash denim',
   },
@@ -161,8 +161,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 9,
     description: 'Authentic 12.5oz ring-spun denim with 2% elastane power stretch. Hand-whiskered and stone-washed indigo finish with reinforced pocket stitching.',
     images: [
-      'https://images.unsplash.com/photo-1542272604-780c96856592?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&auto=format&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=1200&auto=format&fit=crop&q=85',
     ],
     isFeatured: true,
     isNewArrival: false,
