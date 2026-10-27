@@ -346,6 +346,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Cloud Database Sync State
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleSyncToCloud = async () => {
     setIsSyncingCloud(true);
@@ -501,8 +502,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // Multiple Image File Upload Handler with Auto-Compression & Cloud Upload
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
