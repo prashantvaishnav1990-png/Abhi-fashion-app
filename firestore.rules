@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Catalog Products: readable by everyone, manageable by store
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isValidId(productId);
+    }
+
+    // Categories: readable by everyone, manageable by store
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isValidId(categoryId);
+    }
+
+    // Promotional Banners: readable by everyone, manageable by store
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isValidId(bannerId);
+    }
+
+    // Settings: readable by everyone, manageable by store
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+
+    // Orders: create allowed for checkout, read and status update allowed
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if isValidId(orderId);
+      allow update, delete: if isValidId(orderId);
+    }
+
+    // Test connection document for connection healthcheck
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Default deny for unspecified documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

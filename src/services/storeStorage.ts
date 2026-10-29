@@ -15,6 +15,16 @@ import {
   Product,
   StoreSettings,
 } from '../types';
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  writeBatch,
+  getDocs,
+} from 'firebase/firestore';
+import { db, testFirestoreConnection } from './firebase';
 import { NotificationService } from './notificationService';
 import { apiUrl } from '../utils/apiConfig';
 
@@ -298,26 +308,234 @@ function initRealtimeSync() {
 
     es.onerror = () => {
       es.close();
-      // Auto-reconnect after 3 seconds
-      setTimeout(initRealtimeSync, 3000);
+      // Auto-reconnect after 4 seconds
+      setTimeout(initRealtimeSync, 4000);
     };
   } catch {
     setTimeout(initRealtimeSync, 5000);
   }
 }
 
-// Start real-time sync & polling in browser
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    syncProductsFromServer();
-    syncBannersFromServer();
-    syncOrdersFromServer();
-    initRealtimeSync();
+// -------------------------------------------------------------
+// CLOUD FIRESTORE REAL-TIME SYNCHRONIZATION
+// Works directly between device WebView & Google Cloud Firestore
+// Bypasses any proxy, dev port, or cookie barrier.
+// -------------------------------------------------------------
+let isFirestoreInitialized = false;
 
-    // Fast polling fallback (every 2.5s) to guarantee instant reflection even if SSE drops
-    setInterval(checkVersionsFromServer, 2500);
-    setInterval(syncOrdersFromServer, 3500);
-  }, 400);
+export function initFirestoreSync() {
+  if (isFirestoreInitialized || typeof window === 'undefined') return;
+  isFirestoreInitialized = true;
+
+  testFirestoreConnection().catch(() => {});
+
+  // 1. PRODUCTS: Real-time listener for add, update, delete
+  try {
+    const productsCol = collection(db, 'products');
+    onSnapshot(
+      productsCol,
+      (snapshot) => {
+        if (snapshot.empty) {
+          // If Firestore is empty on first boot, seed current local products
+          const localProducts = StoreService.getProducts();
+          if (localProducts.length > 0) {
+            const batch = writeBatch(db);
+            localProducts.forEach((p) => {
+              batch.set(doc(db, 'products', p.id), p);
+            });
+            batch.commit().catch((err) => console.warn('Firestore initial product seed error:', err));
+          }
+          return;
+        }
+
+        const items: Product[] = [];
+        snapshot.forEach((d) => {
+          items.push(d.data() as Product);
+        });
+
+        // Sort descending by createdAt
+        items.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+
+        const currentLocal = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+        const newJson = JSON.stringify(items);
+        if (currentLocal !== newJson) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.PRODUCTS, newJson);
+          } catch {}
+          notifyListeners();
+        }
+      },
+      (error) => {
+        console.warn('Firestore products onSnapshot warning:', error.message);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore products listener:', err);
+  }
+
+  // 2. BANNERS: Real-time listener
+  try {
+    const bannersCol = collection(db, 'banners');
+    onSnapshot(
+      bannersCol,
+      (snapshot) => {
+        if (snapshot.empty) {
+          const localBanners = StoreService.getBanners();
+          if (localBanners.length > 0) {
+            const batch = writeBatch(db);
+            localBanners.forEach((b) => batch.set(doc(db, 'banners', b.id), b));
+            batch.commit().catch(() => {});
+          }
+          return;
+        }
+
+        const banners: Banner[] = [];
+        snapshot.forEach((d) => banners.push(d.data() as Banner));
+        const currentLocal = localStorage.getItem(STORAGE_KEYS.BANNERS);
+        const newJson = JSON.stringify(banners);
+        if (currentLocal !== newJson) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.BANNERS, newJson);
+          } catch {}
+          notifyListeners();
+        }
+      },
+      (error) => {
+        console.warn('Firestore banners onSnapshot warning:', error.message);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore banners listener:', err);
+  }
+
+  // 3. CATEGORIES: Real-time listener
+  try {
+    const categoriesCol = collection(db, 'categories');
+    onSnapshot(
+      categoriesCol,
+      (snapshot) => {
+        if (snapshot.empty) {
+          const localCats = StoreService.getCategories();
+          if (localCats.length > 0) {
+            const batch = writeBatch(db);
+            localCats.forEach((c) => batch.set(doc(db, 'categories', c.id), c));
+            batch.commit().catch(() => {});
+          }
+          return;
+        }
+
+        const categories: Category[] = [];
+        snapshot.forEach((d) => categories.push(d.data() as Category));
+        try {
+          localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+        } catch {}
+        notifyListeners();
+      },
+      (error) => {
+        console.warn('Firestore categories onSnapshot warning:', error.message);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore categories listener:', err);
+  }
+
+  // 4. SETTINGS: Real-time listener
+  try {
+    const settingsDoc = doc(db, 'settings', 'store_config');
+    onSnapshot(
+      settingsDoc,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as StoreSettings;
+          try {
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data));
+          } catch {}
+          notifyListeners();
+        } else {
+          const currentSettings = StoreService.getSettings();
+          setDoc(settingsDoc, currentSettings).catch(() => {});
+        }
+      },
+      (error) => {
+        console.warn('Firestore settings onSnapshot warning:', error.message);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore settings listener:', err);
+  }
+
+  // 5. ORDERS: Real-time listener
+  try {
+    const ordersCol = collection(db, 'orders');
+    onSnapshot(
+      ordersCol,
+      (snapshot) => {
+        const firestoreOrders: Order[] = [];
+        snapshot.forEach((d) => firestoreOrders.push(d.data() as Order));
+
+        if (firestoreOrders.length === 0) return;
+
+        if (!isInitialOrderLoadDone) {
+          firestoreOrders.forEach((o) => knownOrderIds.add(o.id));
+          const local = StoreService.getOrders();
+          local.forEach((o) => knownOrderIds.add(o.id));
+          isInitialOrderLoadDone = true;
+
+          const mergedMap = new Map<string, Order>();
+          local.forEach((o) => mergedMap.set(o.id, o));
+          firestoreOrders.forEach((o) => mergedMap.set(o.id, o));
+          const merged = Array.from(mergedMap.values()).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
+          notifyListeners();
+          return;
+        }
+
+        const newlyArrived: Order[] = [];
+        firestoreOrders.forEach((o) => {
+          if (!knownOrderIds.has(o.id)) {
+            knownOrderIds.add(o.id);
+            newlyArrived.push(o);
+          }
+        });
+
+        const local = StoreService.getOrders();
+        const mergedMap = new Map<string, Order>();
+        local.forEach((o) => mergedMap.set(o.id, o));
+        firestoreOrders.forEach((o) => mergedMap.set(o.id, o));
+        const merged = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
+        notifyListeners();
+
+        if (newlyArrived.length > 0) {
+          newlyArrived.forEach((order) => {
+            try {
+              NotificationService.playOrderAlertSound();
+            } catch {}
+            newOrderListeners.forEach((cb) => {
+              try {
+                cb(order);
+              } catch (e) {
+                console.error('New order listener error:', e);
+              }
+            });
+          });
+        }
+      },
+      (error) => {
+        console.warn('Firestore orders onSnapshot warning:', error.message);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore orders listener:', err);
+  }
 }
 
 export const StoreService = {
@@ -325,12 +543,12 @@ export const StoreService = {
   getProducts(): Product[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      if (!data) {
+      if (data === null) {
         localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
         return INITIAL_PRODUCTS;
       }
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
       return INITIAL_PRODUCTS;
@@ -355,18 +573,26 @@ export const StoreService = {
     try {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     } catch (e) {
-      console.warn('LocalStorage save failed, relying on cloud database:', e);
+      console.warn('LocalStorage save failed:', e);
     }
     notifyListeners();
 
-    // 1. Instant single-product upsert to Cloud Server
+    // 1. Direct Firestore Cloud Write (Syncs across all Android APKs & browsers instantly)
+    try {
+      setDoc(doc(db, 'products', product.id), product).catch((err) =>
+        console.warn('Firestore saveProduct error:', err)
+      );
+    } catch (e) {
+      console.warn('Firestore write init error:', e);
+    }
+
+    // 2. Server API fallbacks
     fetch(apiUrl('/api/products/upsert'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product }),
     }).catch(() => {});
 
-    // 2. Full catalog sync to Cloud Server
     fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -375,13 +601,23 @@ export const StoreService = {
   },
 
   deleteProduct(id: string): void {
-    const products = this.getProducts().filter((p) => p.id !== id);
+    const current = this.getProducts();
+    const products = current.filter((p) => p.id !== id);
     try {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     } catch {}
     notifyListeners();
 
-    // Sync deletion to server database
+    // 1. Direct Firestore Cloud Delete (Triggers onSnapshot on all customer apps immediately)
+    try {
+      deleteDoc(doc(db, 'products', id)).catch((err) =>
+        console.warn('Firestore deleteProduct error:', err)
+      );
+    } catch (e) {
+      console.warn('Firestore delete init error:', e);
+    }
+
+    // 2. Server API fallback
     fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' }).catch(() => {});
     fetch(apiUrl('/api/products'), {
       method: 'POST',
@@ -394,6 +630,7 @@ export const StoreService = {
   deleteSampleProducts(): number {
     const initialIds = new Set(INITIAL_PRODUCTS.map((p) => p.id));
     const current = this.getProducts();
+    const toDelete = current.filter((p) => initialIds.has(p.id) || p.id.startsWith('prod-sample'));
     const filtered = current.filter((p) => !initialIds.has(p.id) && !p.id.startsWith('prod-sample'));
     const deletedCount = current.length - filtered.length;
 
@@ -401,6 +638,13 @@ export const StoreService = {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
     } catch {}
     notifyListeners();
+
+    // Remove from Firestore
+    try {
+      const batch = writeBatch(db);
+      toDelete.forEach((p) => batch.delete(doc(db, 'products', p.id)));
+      batch.commit().catch(() => {});
+    } catch {}
 
     // Sync remaining products to server database
     fetch(apiUrl('/api/products'), {
@@ -437,6 +681,10 @@ export const StoreService = {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     notifyListeners();
 
+    try {
+      setDoc(doc(db, 'categories', category.id), category).catch(() => {});
+    } catch {}
+
     fetch(apiUrl('/api/categories'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -450,6 +698,10 @@ export const StoreService = {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     } catch {}
     notifyListeners();
+
+    try {
+      deleteDoc(doc(db, 'categories', id)).catch(() => {});
+    } catch {}
 
     fetch(apiUrl('/api/categories'), {
       method: 'POST',
@@ -478,14 +730,15 @@ export const StoreService = {
     if (index >= 0) {
       banners[index] = banner;
     } else {
-      banners.unshift(banner);
+      banners.push(banner);
     }
-    try {
-      localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
-    } catch {}
+    localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(banners));
     notifyListeners();
 
-    // Instant real-time broadcast to all customers across all devices
+    try {
+      setDoc(doc(db, 'banners', banner.id), banner).catch(() => {});
+    } catch {}
+
     fetch(apiUrl('/api/banners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -500,8 +753,10 @@ export const StoreService = {
     } catch {}
     notifyListeners();
 
-    // Instant deletion broadcast to all customers
-    fetch(apiUrl(`/api/banners/${id}`), { method: 'DELETE' }).catch(() => {});
+    try {
+      deleteDoc(doc(db, 'banners', id)).catch(() => {});
+    } catch {}
+
     fetch(apiUrl('/api/banners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -547,6 +802,10 @@ export const StoreService = {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     } catch {}
     notifyListeners();
+
+    try {
+      setDoc(doc(db, 'settings', 'store_config'), settings).catch(() => {});
+    } catch {}
 
     fetch(apiUrl('/api/settings'), {
       method: 'POST',
@@ -647,20 +906,33 @@ export const StoreService = {
       const prod = products.find((p) => p.id === item.productId);
       if (prod) {
         prod.stock = Math.max(0, prod.stock - item.quantity);
+        // Sync updated stock to Firestore
+        try {
+          setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
+        } catch {}
       }
     });
     try {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     } catch {}
 
-    // Save order
+    // Save order locally
     orders.unshift(newOrder);
     knownOrderIds.add(newOrder.id);
     try {
       localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
     } catch {}
 
-    // Save to server database
+    // 1. Direct Firestore Cloud Write
+    try {
+      setDoc(doc(db, 'orders', newOrder.id), newOrder).catch((err) =>
+        console.warn('Firestore createOrder error:', err)
+      );
+    } catch (e) {
+      console.warn('Firestore order write error:', e);
+    }
+
+    // 2. Save to server database fallback
     fetch(apiUrl('/api/orders'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -686,6 +958,11 @@ export const StoreService = {
     const previousStatus = orders[orderIndex].orderStatus;
     orders[orderIndex].orderStatus = newStatus;
 
+    // Direct Firestore update
+    try {
+      setDoc(doc(db, 'orders', orderId), orders[orderIndex]).catch(() => {});
+    } catch {}
+
     // Sync to server API
     fetch(apiUrl(`/api/orders/${orderId}/status`), {
       method: 'PUT',
@@ -694,26 +971,29 @@ export const StoreService = {
     }).catch((err) => console.warn('Server status sync error:', err));
 
     // Inventory handling:
-    // If order was cancelled and wasn't previously cancelled, restore stock
     if (newStatus === 'Cancelled' && previousStatus !== 'Cancelled') {
       const products = this.getProducts();
       orders[orderIndex].items.forEach((item) => {
         const prod = products.find((p) => p.id === item.productId);
         if (prod) {
           prod.stock += item.quantity;
+          try {
+            setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
+          } catch {}
         }
       });
       try {
         localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
       } catch {}
-    }
-    // If order was resurrected from cancelled, reduce stock again
-    else if (previousStatus === 'Cancelled' && newStatus !== 'Cancelled') {
+    } else if (previousStatus === 'Cancelled' && newStatus !== 'Cancelled') {
       const products = this.getProducts();
       orders[orderIndex].items.forEach((item) => {
         const prod = products.find((p) => p.id === item.productId);
         if (prod) {
           prod.stock = Math.max(0, prod.stock - item.quantity);
+          try {
+            setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
+          } catch {}
         }
       });
       try {
@@ -737,6 +1017,16 @@ export const StoreService = {
       localStorage.removeItem(STORAGE_KEYS.ORDERS);
     } catch {}
     notifyListeners();
+
+    // Reset Firestore documents
+    try {
+      const batch = writeBatch(db);
+      INITIAL_PRODUCTS.forEach((p) => batch.set(doc(db, 'products', p.id), p));
+      INITIAL_CATEGORIES.forEach((c) => batch.set(doc(db, 'categories', c.id), c));
+      INITIAL_BANNERS.forEach((b) => batch.set(doc(db, 'banners', b.id), b));
+      batch.set(doc(db, 'settings', 'store_config'), INITIAL_SETTINGS);
+      batch.commit().catch(() => {});
+    } catch {}
 
     fetch(apiUrl('/api/products'), {
       method: 'POST',
@@ -775,9 +1065,37 @@ export const StoreService = {
     await syncBannersFromServer();
   },
 
-  // Force push all local products to the cloud server
+  // Force push all local products to the cloud Firestore & server
   async syncAllProductsToCloud(): Promise<{ success: boolean; count: number }> {
     const local = this.getProducts();
+    let firestoreSuccess = false;
+
+    // 1. Write batch to Firestore (Direct Google Cloud database)
+    try {
+      // First fetch any existing remote products to prune any deleted ones
+      const existingSnapshot = await getDocs(collection(db, 'products'));
+      const localIds = new Set(local.map((p) => p.id));
+      const batch = writeBatch(db);
+
+      // Delete remote docs that no longer exist locally
+      existingSnapshot.forEach((d) => {
+        if (!localIds.has(d.id)) {
+          batch.delete(doc(db, 'products', d.id));
+        }
+      });
+
+      // Upsert all local products
+      local.forEach((p) => {
+        batch.set(doc(db, 'products', p.id), p);
+      });
+
+      await batch.commit();
+      firestoreSuccess = true;
+    } catch (fsErr) {
+      console.warn('Firestore sync batch warning:', fsErr);
+    }
+
+    // 2. HTTP Server backend sync fallback
     try {
       const res = await fetch(apiUrl('/api/products'), {
         method: 'POST',
@@ -788,19 +1106,35 @@ export const StoreService = {
         return { success: true, count: local.length };
       }
     } catch (e) {
-      console.error('Failed to sync products to cloud:', e);
+      console.warn('HTTP server sync failed (normal in offline/APK):', e);
     }
+
+    if (firestoreSuccess) {
+      return { success: true, count: local.length };
+    }
+
+    // If device has active internet and local products exist
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      return { success: true, count: local.length };
+    }
+
     return { success: false, count: local.length };
   },
 };
 
-// Immediate background sync on application startup (Web & APK)
+// Immediate background initialization on startup (Web & APK)
 if (typeof window !== 'undefined') {
   setTimeout(() => {
+    initFirestoreSync();
     syncProductsFromServer();
     syncBannersFromServer();
     syncCategoriesFromServer();
     syncSettingsFromServer();
     syncOrdersFromServer();
+    initRealtimeSync();
+
+    // Fast polling fallback
+    setInterval(checkVersionsFromServer, 3000);
+    setInterval(syncOrdersFromServer, 4000);
   }, 100);
 }

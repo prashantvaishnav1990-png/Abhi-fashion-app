@@ -1,7 +1,10 @@
 // Configuration for Cloud API and Server Connectivity
 // Handles seamless communication whether running on Web (Cloud Run) or Android APK (Capacitor WebView)
 
-export const PRODUCTION_CLOUD_URL = 'https://ais-pre-3ikhphexvv4zk22tmwzsu7-644693391483.asia-east1.run.app';
+export const PRODUCTION_CLOUD_URL =
+  (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('capacitor'))
+    ? window.location.origin
+    : 'https://ais-dev-3ikhphexvv4zk22tmwzsu7-644693391483.asia-east1.run.app';
 
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {

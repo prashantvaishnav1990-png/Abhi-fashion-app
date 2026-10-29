@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Catalog product item in store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "mrp": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "discountPercent": { "type": "number" },
+        "sizes": { "type": "array" },
+        "colors": { "type": "array" },
+        "stock": { "type": "number" },
+        "description": { "type": "string", "maxLength": 2000 },
+        "images": { "type": "array" },
+        "isFeatured": { "type": "boolean" },
+        "isNewArrival": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "name", "category", "sellingPrice"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Menswear product category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "icon": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "name"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional hero banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "subtitle": { "type": "string", "maxLength": 300 },
+        "badge": { "type": "string", "maxLength": 100 },
+        "offerText": { "type": "string", "maxLength": 300 },
+        "image": { "type": "string", "maxLength": 1000 },
+        "categoryId": { "type": "string", "maxLength": 100 },
+        "isEnabled": { "type": "boolean" }
+      },
+      "required": ["id", "title", "image"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Store configuration and payment settings",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string", "maxLength": 200 },
+        "storeTagline": { "type": "string", "maxLength": 300 },
+        "storeAddress": { "type": "string", "maxLength": 500 },
+        "whatsappNumber": { "type": "string", "maxLength": 50 },
+        "supportPhone": { "type": "string", "maxLength": 50 },
+        "deliveryCharges": { "type": "number" },
+        "freeDeliveryThreshold": { "type": "number" },
+        "isCodAvailable": { "type": "boolean" },
+        "isOnlinePaymentAvailable": { "type": "boolean" },
+        "isEmiAvailable": { "type": "boolean" },
+        "adminPin": { "type": "string", "maxLength": 20 }
+      },
+      "required": ["storeName"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 100 },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "paymentStatus": { "type": "string", "maxLength": 50 },
+        "orderStatus": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "orderNumber", "totalAmount"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store catalog products visible to all users and editable by store admin"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Store categories visible to all users"
+    },
+    "/banners/{bannerId}": {
+      "schema": "Banner",
+      "description": "Store promotional banners visible to all users"
+    },
+    "/settings/{settingId}": {
+      "schema": "StoreSettings",
+      "description": "Store global configuration and payment settings"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders submitted from checkout and updated by store admin"
+    }
+  }
+}
