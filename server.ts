@@ -505,7 +505,7 @@ async function startServer() {
     try {
       const targetUrl =
         (req.query.url as string) ||
-        'https://drive.google.com/uc?export=download&id=1Fu_2Oul0hGXBnLV8sweNZFTooibbFfjh';
+        'https://drive.google.com/uc?export=download&id=1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-';
       const buffer = await QRCode.toBuffer(targetUrl, {
         width: 1024,
         margin: 2,
@@ -881,6 +881,17 @@ Kripya order verify karke packing shuru karein!`;
         const prod = products.find((p) => p.id === it.productId);
         if (prod) {
           prod.stock = Math.max(0, (prod.stock || 0) - (it.quantity || 1));
+          if (it.selectedSize) {
+            if (!prod.sizeStock) prod.sizeStock = {};
+            const currentSizeQty = prod.sizeStock[it.selectedSize] !== undefined
+              ? prod.sizeStock[it.selectedSize]
+              : Math.max(0, Math.floor(prod.stock / (prod.sizes?.length || 1)));
+            prod.sizeStock[it.selectedSize] = Math.max(0, currentSizeQty - (it.quantity || 1));
+            const allSizeStocks = Object.values(prod.sizeStock);
+            if (allSizeStocks.length >= (prod.sizes?.length || 1)) {
+              prod.stock = allSizeStocks.reduce((sum: number, q: any) => sum + (Number(q) || 0), 0);
+            }
+          }
         }
       });
       writeJsonFile(PRODUCTS_FILE, products);

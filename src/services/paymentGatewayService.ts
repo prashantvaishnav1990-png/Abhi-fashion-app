@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { Order, StoreSettings } from '../types';
+import { StoreSettings } from '../types';
 
 export interface RazorpayOptions {
   key: string;
@@ -40,6 +40,117 @@ declare global {
 }
 
 export const PaymentGatewayService = {
+  // Store default UPI ID
+  getStoreUpiId(settings?: StoreSettings): string {
+    return (
+      settings?.collectUpiId ||
+      settings?.upiMandateVpa ||
+      settings?.kistPeUpiId ||
+      '8982147180@ybl'
+    ).trim();
+  },
+
+  // Generate UPI deep-link for specific or generic UPI apps
+  getUpiDeepLink(params: {
+    upiId?: string;
+    amount: number;
+    customerName?: string;
+    storeName?: string;
+    orderNumber?: string;
+    note?: string;
+    app?: 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'generic';
+  }): string {
+    const cleanUpi = (params.upiId || '8982147180@ybl').trim();
+    const cleanAmount = params.amount.toFixed(2);
+    const store = (params.storeName || 'ABHI FASHION').trim();
+    const payeeName = encodeURIComponent(store);
+    const noteText = (params.note || `Order Payment ${params.orderNumber || ''} - ${store}`).trim();
+    const encodedNote = encodeURIComponent(noteText);
+
+    // Standard UPI URI query string
+    const query = `pa=${cleanUpi}&pn=${payeeName}&am=${cleanAmount}&cu=INR&tn=${encodedNote}`;
+
+    switch (params.app) {
+      case 'phonepe':
+        return `phonepe://pay?${query}`;
+      case 'paytm':
+        return `paytmmp://pay?${query}`;
+      case 'gpay':
+        return `tez://upi/pay?${query}`;
+      case 'bhim':
+      case 'generic':
+      default:
+        return `upi://pay?${query}`;
+    }
+  },
+
+  // Open UPI app on phone
+  openUpiApp(params: {
+    upiId?: string;
+    amount: number;
+    customerName?: string;
+    storeName?: string;
+    orderNumber?: string;
+    note?: string;
+    app?: 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'generic';
+  }): boolean {
+    const deepLink = this.getUpiDeepLink(params);
+    const genericLink = this.getUpiDeepLink({ ...params, app: 'generic' });
+
+    try {
+      // First attempt target app URL
+      window.location.href = deepLink;
+      // Also fallback if protocol handler failed on some Android webviews
+      setTimeout(() => {
+        try {
+          if (params.app !== 'generic') {
+            window.location.href = genericLink;
+          }
+        } catch {}
+      }, 500);
+      return true;
+    } catch (err) {
+      console.warn('Could not open UPI deep link:', err);
+      try {
+        window.open(genericLink, '_blank');
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  },
+
+  // Generate high-resolution live UPI QR Code
+  async generateUpiQrCode(params: {
+    upiId?: string;
+    amount: number;
+    customerName?: string;
+    storeName?: string;
+    orderNumber?: string;
+    note?: string;
+  }): Promise<string> {
+    const deepLink = this.getUpiDeepLink({
+      ...params,
+      app: 'generic',
+    });
+
+    try {
+      const qrDataUrl = await QRCode.toDataURL(deepLink, {
+        width: 320,
+        margin: 1.5,
+        color: {
+          dark: '#0B132B',
+          light: '#FFFFFF',
+        },
+        errorCorrectionLevel: 'M',
+      });
+      return qrDataUrl;
+    } catch (e) {
+      console.error('Error generating UPI QR Code:', e);
+      return '';
+    }
+  },
+
   // Dynamically load Razorpay SDK
   loadRazorpayScript(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -49,6 +160,13 @@ export const PaymentGatewayService = {
       }
       if (window.Razorpay) {
         resolve(true);
+        return;
+      }
+
+      const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve(true));
+        existingScript.addEventListener('error', () => resolve(false));
         return;
       }
 
@@ -70,14 +188,25 @@ export const PaymentGatewayService = {
     customerName: string;
     customerMobile: string;
     settings: StoreSettings;
+    customKeyId?: string;
     description?: string;
     notes?: Record<string, string>;
     onSuccess: (paymentId: string) => void;
     onDismiss?: () => void;
-  }): Promise<boolean> {
-    const isLoaded = await this.loadRazorpayScript();
+  }): Promise<{ opened: boolean; reason?: string }> {
+    const keyId =
+      params.customKeyId ||
+      params.settings.kistPeRazorpayKeyId ||
+      params.settings.razorpayKeyId ||
+      params.settings.paymentGatewayKeyId ||
+      '';
 
-    const keyId = params.settings.razorpayKeyId || params.settings.paymentGatewayKeyId || 'rzp_test_abhifashion';
+    // If key is a placeholder or not provided, report clear reason so UI can offer instant UPI/Card directly
+    if (!keyId || keyId === 'rzp_test_abhifashion' || keyId.length < 10) {
+      return { opened: false, reason: 'unconfigured_key' };
+    }
+
+    const isLoaded = await this.loadRazorpayScript();
     const amountInPaise = Math.round(params.amount * 100);
 
     if (isLoaded && window.Razorpay) {
@@ -111,13 +240,14 @@ export const PaymentGatewayService = {
         });
 
         rzp.open();
-        return true;
-      } catch (err) {
+        return { opened: true };
+      } catch (err: any) {
         console.warn('Razorpay checkout initialization error:', err);
+        return { opened: false, reason: err?.message || 'init_error' };
       }
     }
 
-    return false;
+    return { opened: false, reason: 'script_not_loaded' };
   },
 
   // Generate Kist Pe dynamic UPI deep-link for instant down payment

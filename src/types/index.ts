@@ -19,6 +19,7 @@ export interface Product {
   sizes: string[];
   colors?: string[]; // Available colors e.g. ['Jet Black', 'Navy Blue', 'Wine Red']
   stock: number;
+  sizeStock?: Record<string, number>; // Quantity per size, e.g. { '28': 10, '30': 15, '32': 10 }
   description: string;
   images: string[];
   isFeatured: boolean;
@@ -117,6 +118,8 @@ export interface Order {
   };
   razorpayPaymentId?: string;
   kistPeTransactionId?: string;
+  upiTransactionId?: string;
+  cardLast4?: string;
 }
 
 export interface Banner {
@@ -171,6 +174,8 @@ export interface StoreSettings {
   kistPeUpiId?: string;
   kistPeMerchantLink?: string;
   kistPeAppName?: string;
+  kistPeRazorpayKeyId?: string;
+  kistPeRazorpayEnabled?: boolean;
   // Poster Barcode & App Download Public URL
   appPublicUrl?: string;
 }

@@ -20,14 +20,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onDeleteProduct,
   isDeleteMode = false,
 }) => {
-  const [selectedSize, setSelectedSize] = useState<string>(
-    product?.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Standard'
-  );
+  const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string | undefined>(
     product?.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
   const [justAdded, setJustAdded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [sizePromptNotice, setSizePromptNotice] = useState<string | null>(null);
 
   const isOutOfStock = (product?.stock ?? 0) <= 0;
   const isLowStock = (product?.stock ?? 0) > 0 && (product?.stock ?? 0) <= 4;
@@ -39,7 +38,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
-    onAddToCart(product, selectedSize, selectedColor);
+
+    // Size Selection is strictly mandatory!
+    if (product?.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSizePromptNotice('⚠️ Pehle Size Chunein!');
+      setTimeout(() => setSizePromptNotice(null), 3000);
+      return;
+    }
+
+    if (selectedSize && product?.sizeStock && (product.sizeStock[selectedSize] ?? 1) <= 0) {
+      setSizePromptNotice(`⚠️ Size ${selectedSize} Out of Stock!`);
+      setTimeout(() => setSizePromptNotice(null), 3000);
+      return;
+    }
+
+    onAddToCart(product, selectedSize || 'Standard', selectedColor);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1500);
   };
@@ -47,7 +60,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
-    onBuyNow(product, selectedSize, selectedColor);
+
+    // Size Selection is strictly mandatory!
+    if (product?.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSizePromptNotice('⚠️ Pehle Size Chunein!');
+      setTimeout(() => setSizePromptNotice(null), 3000);
+      return;
+    }
+
+    if (selectedSize && product?.sizeStock && (product.sizeStock[selectedSize] ?? 1) <= 0) {
+      setSizePromptNotice(`⚠️ Size ${selectedSize} Out of Stock!`);
+      setTimeout(() => setSizePromptNotice(null), 3000);
+      return;
+    }
+
+    onBuyNow(product, selectedSize || 'Standard', selectedColor);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -217,26 +244,49 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
+        {/* Mandatory Size Prompt Banner if clicked without size */}
+        {sizePromptNotice && (
+          <div className="mb-2 p-1.5 rounded-lg bg-amber-400/20 border border-amber-400 text-amber-300 text-[11px] font-black flex items-center justify-center gap-1 animate-bounce">
+            <span>{sizePromptNotice}</span>
+          </div>
+        )}
+
         {/* Available Sizes Pills */}
         <div
-          className="mb-3 flex items-center gap-1.5 flex-wrap"
+          className={`mb-3 flex items-center gap-1.5 flex-wrap p-1 rounded-xl transition ${
+            sizePromptNotice ? 'bg-amber-400/10 ring-1 ring-amber-400' : ''
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-[10px] font-medium text-slate-400">Sizes:</span>
-          {product.sizes.map((size) => (
-            <button
-              key={size}
-              type="button"
-              onClick={() => setSelectedSize(size)}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border ${
-                selectedSize === size
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 font-bold'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-slate-500'
-              }`}
-            >
-              {size}
-            </button>
-          ))}
+          <span className="text-[10px] font-medium text-slate-400">
+            {selectedSize ? `Size: ${selectedSize}` : 'Sizes (Choose):'}
+          </span>
+          {product.sizes.map((size) => {
+            const isSoldOut =
+              product.sizeStock?.[size] !== undefined && product.sizeStock[size] <= 0;
+            return (
+              <button
+                key={size}
+                type="button"
+                disabled={isSoldOut}
+                onClick={() => {
+                  setSelectedSize(size);
+                  setSizePromptNotice(null);
+                }}
+                title={isSoldOut ? `Size ${size} Out of Stock` : `Select Size ${size}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border ${
+                  isSoldOut
+                    ? 'bg-slate-900/60 text-slate-600 border-slate-800 line-through cursor-not-allowed opacity-50'
+                    : selectedSize === size
+                    ? 'bg-amber-400 text-slate-950 border-amber-400 font-black shadow-sm ring-2 ring-amber-400/50 scale-105'
+                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-amber-400/50'
+                }`}
+              >
+                {size}
+                {isSoldOut && <span className="text-[8px] ml-0.5 text-rose-500 font-normal">Out</span>}
+              </button>
+            );
+          })}
         </div>
 
         {/* Action Buttons: Add to Cart & Buy Now */}

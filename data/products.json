@@ -28,7 +28,13 @@
     "isNewArrival": false,
     "rating": 4.8,
     "reviewsCount": 38,
-    "createdAt": "2026-03-01T10:00:00Z"
+    "createdAt": "2026-03-01T10:00:00Z",
+    "sizeStock": {
+      "38": 5,
+      "40": 3,
+      "42": 3,
+      "44": 3
+    }
   },
   {
     "id": "prod-2",
@@ -58,7 +64,13 @@
     "isNewArrival": true,
     "rating": 4.9,
     "reviewsCount": 54,
-    "createdAt": "2026-03-10T10:00:00Z"
+    "createdAt": "2026-03-10T10:00:00Z",
+    "sizeStock": {
+      "S": 7,
+      "M": 5,
+      "L": 5,
+      "XL": 5
+    }
   },
   {
     "id": "prod-3",
@@ -88,7 +100,13 @@
     "isNewArrival": false,
     "rating": 4.7,
     "reviewsCount": 42,
-    "createdAt": "2026-02-15T10:00:00Z"
+    "createdAt": "2026-02-15T10:00:00Z",
+    "sizeStock": {
+      "30": 3,
+      "32": 2,
+      "34": 2,
+      "36": 2
+    }
   },
   {
     "id": "prod-4",
@@ -114,7 +132,14 @@
     "isNewArrival": true,
     "rating": 4.6,
     "reviewsCount": 29,
-    "createdAt": "2026-03-12T10:00:00Z"
+    "createdAt": "2026-03-12T10:00:00Z",
+    "sizeStock": {
+      "30": 4,
+      "32": 2,
+      "34": 2,
+      "36": 2,
+      "38": 2
+    }
   },
   {
     "id": "prod-5",
@@ -138,7 +163,12 @@
     "isNewArrival": true,
     "rating": 4.9,
     "reviewsCount": 61,
-    "createdAt": "2026-03-08T10:00:00Z"
+    "createdAt": "2026-03-08T10:00:00Z",
+    "sizeStock": {
+      "M": 2,
+      "L": 1,
+      "XL": 1
+    }
   },
   {
     "id": "prod-6",
@@ -163,7 +193,13 @@
     "isNewArrival": false,
     "rating": 4.8,
     "reviewsCount": 33,
-    "createdAt": "2026-02-20T10:00:00Z"
+    "createdAt": "2026-02-20T10:00:00Z",
+    "sizeStock": {
+      "7 UK": 2,
+      "8 UK": 2,
+      "9 UK": 2,
+      "10 UK": 2
+    }
   },
   {
     "id": "prod-7",
@@ -185,7 +221,10 @@
     "isNewArrival": false,
     "rating": 4.6,
     "reviewsCount": 19,
-    "createdAt": "2026-01-28T10:00:00Z"
+    "createdAt": "2026-01-28T10:00:00Z",
+    "sizeStock": {
+      "Free Size (28-40)": 25
+    }
   },
   {
     "id": "prod-8",
@@ -210,6 +249,12 @@
     "isNewArrival": true,
     "rating": 4.8,
     "reviewsCount": 27,
-    "createdAt": "2026-03-14T10:00:00Z"
+    "createdAt": "2026-03-14T10:00:00Z",
+    "sizeStock": {
+      "38": 3,
+      "40": 0,
+      "42": 0,
+      "44": 0
+    }
   }
 ]

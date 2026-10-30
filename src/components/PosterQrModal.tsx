@@ -25,7 +25,7 @@ import { StoreSettings } from '../types';
 import { StoreService } from '../services/storeStorage';
 
 const VERIFIED_GOOGLE_DRIVE_URL =
-  'https://drive.google.com/uc?export=download&id=1Fu_2Oul0hGXBnLV8sweNZFTooibbFfjh';
+  'https://drive.google.com/uc?export=download&id=1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-';
 
 interface PosterQrModalProps {
   isOpen: boolean;

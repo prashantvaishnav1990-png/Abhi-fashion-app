@@ -44,6 +44,8 @@ import {
   Copy,
   MessageCircle,
   QrCode,
+  Ruler,
+  Zap,
 } from 'lucide-react';
 import {
   Banner,
@@ -458,6 +460,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       discountPercent: 47,
       sizes: ['M', 'L', 'XL'],
       colors: ['Jet Black', 'Navy Blue'],
+      sizeStock: { 'M': 5, 'L': 5, 'XL': 5 },
       stock: 15,
       description: '',
       images: [
@@ -879,16 +882,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-1 text-[10px] text-slate-400 mb-1.5">
-                  <div className="flex items-center gap-1">
-                    <span>Sizes:</span>
-                    <span className="font-semibold text-slate-200">
-                      {Array.isArray(p.sizes) ? p.sizes.join(', ') : 'Standard'}
+                <div className="flex flex-col gap-1 text-[10px] text-slate-400 mb-1.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-slate-400 font-semibold">Sizes & Stock:</span>
+                    <span className="font-bold text-amber-400 px-1.5 py-0.2 rounded bg-amber-400/10 border border-amber-400/20 text-[9px]">
+                      {Array.isArray(p.images) ? p.images.length : 0} HD Photos
                     </span>
                   </div>
-                  <span className="font-bold text-amber-400 px-1.5 py-0.2 rounded bg-amber-400/10 border border-amber-400/20 text-[9px]">
-                    {Array.isArray(p.images) ? p.images.length : 0} HD Photos
-                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.isArray(p.sizes) && p.sizes.length > 0 ? (
+                      p.sizes.map((sz) => {
+                        const qty = p.sizeStock?.[sz] ?? Math.max(0, Math.floor(p.stock / p.sizes.length));
+                        return (
+                          <span
+                            key={sz}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                              qty > 0
+                                ? 'bg-slate-900 border-slate-700 text-slate-200'
+                                : 'bg-rose-950/40 border-rose-800/40 text-rose-400 line-through'
+                            }`}
+                          >
+                            {sz}: <span className={qty > 0 ? 'text-amber-400' : 'text-rose-400'}>{qty}</span>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="font-semibold text-slate-200">Standard</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Colors display */}
@@ -1750,6 +1771,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
 
+              {/* Store Official UPI ID for Direct Customer Payments (Google Pay / PhonePe / Paytm / QR) */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-cyan-500/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-cyan-400" />
+                    <span className="font-bold text-white text-xs">
+                      दुकान का ऑफिशियल UPI ID (Google Pay, PhonePe, Paytm & QR Code हेतु)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
+                    ⚡ Instant UPI Live
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Store Official UPI Address (VPA) *
+                    </label>
+                    <input
+                      type="text"
+                      value={localSettings.collectUpiId || '8982147180@ybl'}
+                      onChange={(e) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          collectUpiId: e.target.value.trim(),
+                          upiMandateVpa: e.target.value.trim(),
+                          kistPeUpiId: e.target.value.trim(),
+                        })
+                      }
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono font-bold focus:outline-hidden focus:border-cyan-400"
+                      placeholder="e.g. 8982147180@ybl"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Grahak ke checkout me 1-click Google Pay, PhonePe, Paytm aur dynamic QR code is UPI ID se banta hai.
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-[11px] text-cyan-300 flex flex-col justify-center">
+                    <span className="font-bold">Active Store UPI:</span>
+                    <span className="font-mono text-white text-xs mt-0.5 font-bold">{localSettings.collectUpiId || '8982147180@ybl'}</span>
+                    <span className="text-[10px] text-slate-400 mt-1">Sabhi customer payments seedha is UPI ID se linked bank khate me aayenge.</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Razorpay Gateway Link Section */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1832,16 +1899,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={localSettings.kistPeUpiId || '9826198421@kistpe'}
+                      value={localSettings.kistPeUpiId || '8982147180@ybl'}
                       onChange={(e) =>
                         setLocalSettings({
                           ...localSettings,
                           kistPeUpiId: e.target.value,
-                          collectUpiId: e.target.value,
+                          collectUpiId: localSettings.collectUpiId || e.target.value,
                         })
                       }
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden focus:border-emerald-400"
-                      placeholder="e.g. 9826198421@kistpe ya 9826198421@okbizaxis"
+                      placeholder="e.g. 8982147180@ybl"
                     />
                     <span className="text-[10px] text-slate-400">
                       Grahak ke liye is UPI ID ka dynamic QR code banta hai.
@@ -1866,6 +1933,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     />
                     <span className="text-[10px] text-slate-400">
                       Aapka Kist Pe dukaandar referral / merchant code.
+                    </span>
+                  </div>
+
+                  <div className="sm:col-span-2 pt-2 border-t border-slate-800">
+                    <label className="block text-[11px] font-semibold text-amber-300 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        Kist Pe Razorpay Key ID (Down Payment Gateway)
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        Kist Pe 33% down payment direct Razorpay se receive karne ke liye
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={localSettings.kistPeRazorpayKeyId || ''}
+                      onChange={(e) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          kistPeRazorpayKeyId: e.target.value.trim(),
+                        })
+                      }
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden focus:border-amber-400 placeholder-slate-500"
+                      placeholder="e.g. rzp_live_xxxxxxxx ya rzp_test_xxxxxxxx (Khali chhodne par main Razorpay Key use hogi)"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      ⚡ Customer Kist Pe down payment direct Razorpay (Card/UPI) se de sakega. Agar aapke paas Kist Pe app wala Razorpay Key hai toh yahan enter karein.
                     </span>
                   </div>
                 </div>
@@ -2724,23 +2818,229 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
 
-              {/* Sizes (comma separated) */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Sizes (comma separated: e.g. S, M, L, XL or 28, 30, 32, 34)
-                </label>
-                <input
-                  type="text"
-                  value={editingProduct.sizes.join(', ')}
-                  onChange={(e) => {
-                    const sizesArr = e.target.value
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean);
-                    setEditingProduct({ ...editingProduct, sizes: sizesArr });
-                  }}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"
-                />
+              {/* SIZES AND SIZE-WISE QUANTITY MANAGEMENT */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Ruler className="w-4 h-4 text-amber-400" />
+                    <label className="text-xs font-bold text-white uppercase tracking-wider">
+                      Sizes & Size-Wise Stock (साइज अनुसार स्टॉक)
+                    </label>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Total: {editingProduct.stock} Units
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 text-[11px] mb-1">
+                    Sizes daalein (comma, dash ya space se likhein: jaise <span className="text-amber-300 font-mono">28, 30, 32</span> ya <span className="text-amber-300 font-mono">28-30-32</span> ya <span className="text-amber-300 font-mono">S, M, L, XL</span>):
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(editingProduct.sizes) ? editingProduct.sizes.join(', ') : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      // Support comma, dash, slash, or whitespace separation
+                      const sizesArr = raw
+                        .split(/[,/\s-]+/)
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+
+                      // Preserve existing size stocks or initialize with default
+                      const updatedSizeStock: Record<string, number> = {};
+                      sizesArr.forEach((sz) => {
+                        updatedSizeStock[sz] =
+                          editingProduct.sizeStock?.[sz] ??
+                          Math.max(1, Math.floor(editingProduct.stock / (sizesArr.length || 1)));
+                      });
+                      const totalSum = Object.values(updatedSizeStock).reduce(
+                        (a, b) => a + Number(b || 0),
+                        0
+                      );
+
+                      setEditingProduct({
+                        ...editingProduct,
+                        sizes: sizesArr,
+                        sizeStock: updatedSizeStock,
+                        stock: totalSum > 0 ? totalSum : editingProduct.stock,
+                      });
+                    }}
+                    placeholder="e.g. 28, 30, 32 ya S, M, L, XL"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
+                  />
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1.5 text-[10px]">
+                  <span className="text-slate-400">Quick templates:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tSizes = ['28', '30', '32', '34', '36'];
+                      const sStock: Record<string, number> = {};
+                      tSizes.forEach((sz) => (sStock[sz] = 5));
+                      setEditingProduct({
+                        ...editingProduct,
+                        sizes: tSizes,
+                        sizeStock: sStock,
+                        stock: 25,
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
+                  >
+                    Jeans (28, 30, 32, 34, 36)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+                      const sStock: Record<string, number> = {};
+                      tSizes.forEach((sz) => (sStock[sz] = 5));
+                      setEditingProduct({
+                        ...editingProduct,
+                        sizes: tSizes,
+                        sizeStock: sStock,
+                        stock: 25,
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
+                  >
+                    Shirts (S, M, L, XL, XXL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tSizes = ['7 UK', '8 UK', '9 UK', '10 UK'];
+                      const sStock: Record<string, number> = {};
+                      tSizes.forEach((sz) => (sStock[sz] = 4));
+                      setEditingProduct({
+                        ...editingProduct,
+                        sizes: tSizes,
+                        sizeStock: sStock,
+                        stock: 16,
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
+                  >
+                    Shoes (7, 8, 9, 10 UK)
+                  </button>
+                </div>
+
+                {/* Individual Size Quantity Cards */}
+                {editingProduct.sizes && editingProduct.sizes.length > 0 ? (
+                  <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-300">
+                        Har size ke kitne piece hain yahan enter karein:
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Order aane par 1 piece automatically minus ho jayega
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {editingProduct.sizes.map((sz) => {
+                        const currentQty =
+                          editingProduct.sizeStock?.[sz] ??
+                          Math.max(0, Math.floor(editingProduct.stock / (editingProduct.sizes.length || 1)));
+                        return (
+                          <div
+                            key={sz}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition ${
+                              currentQty > 0
+                                ? 'bg-slate-900 border-slate-700'
+                                : 'bg-rose-950/20 border-rose-800/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono">
+                                {sz}
+                              </span>
+                              <div>
+                                <span className="text-xs font-bold text-white block">Size {sz}</span>
+                                <span
+                                  className={`text-[10px] font-semibold ${
+                                    currentQty > 0 ? 'text-emerald-400' : 'text-rose-400'
+                                  }`}
+                                >
+                                  {currentQty > 0
+                                    ? `${currentQty} Pieces Available`
+                                    : 'Out of Stock (0)'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = { ...(editingProduct.sizeStock || {}) };
+                                  updated[sz] = Math.max(0, currentQty - 1);
+                                  const sum = Object.values(updated).reduce(
+                                    (a, b) => a + Number(b || 0),
+                                    0
+                                  );
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    sizeStock: updated,
+                                    stock: sum,
+                                  });
+                                }}
+                                className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-black text-sm flex items-center justify-center cursor-pointer border border-slate-700"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min={0}
+                                value={currentQty}
+                                onChange={(e) => {
+                                  const val = Math.max(0, parseInt(e.target.value) || 0);
+                                  const updated = { ...(editingProduct.sizeStock || {}) };
+                                  updated[sz] = val;
+                                  const sum = Object.values(updated).reduce(
+                                    (a, b) => a + Number(b || 0),
+                                    0
+                                  );
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    sizeStock: updated,
+                                    stock: sum,
+                                  });
+                                }}
+                                className="w-14 text-center bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-lg py-1 text-xs text-white font-mono font-bold"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = { ...(editingProduct.sizeStock || {}) };
+                                  updated[sz] = currentQty + 1;
+                                  const sum = Object.values(updated).reduce(
+                                    (a, b) => a + Number(b || 0),
+                                    0
+                                  );
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    sizeStock: updated,
+                                    stock: sum,
+                                  });
+                                }}
+                                className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-black text-sm flex items-center justify-center cursor-pointer border border-slate-700"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Upar sizes enter karein, unka alag-alag stock quantity input yahan aa jayega.
+                  </p>
+                )}
               </div>
 
               {/* MULTIPLE HD IMAGES STUDIO */}

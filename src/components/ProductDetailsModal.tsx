@@ -37,9 +37,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onDeleteProduct,
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(
-    product?.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Standard'
-  );
+  const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState<string | undefined>(
     product?.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
@@ -47,11 +45,13 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [addedNotice, setAddedNotice] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [sizeError, setSizeError] = useState<string | null>(null);
 
   // Sync selected size/color if product changes
   useEffect(() => {
     if (product) {
-      setSelectedSize(product.sizes.length > 0 ? product.sizes[0] : 'Standard');
+      setSelectedSize('');
+      setSizeError(null);
       setSelectedColor(product.colors && product.colors.length > 0 ? product.colors[0] : undefined);
       setSelectedImageIndex(0);
       setQuantity(1);
@@ -68,14 +68,39 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
-    onAddToCart(product, selectedSize, quantity, selectedColor);
+
+    // Strict validation: size must be chosen first!
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSizeError('⚠️ Kripya aage badhne se pehle apna SIZE select karein!');
+      return;
+    }
+
+    if (selectedSize && product.sizeStock && (product.sizeStock[selectedSize] ?? 1) <= 0) {
+      setSizeError(`⚠️ Size "${selectedSize}" out of stock hai, kripya doosra size select karein.`);
+      return;
+    }
+
+    onAddToCart(product, selectedSize || 'Standard', quantity, selectedColor);
     setAddedNotice(true);
+    setSizeError(null);
     setTimeout(() => setAddedNotice(false), 2000);
   };
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    onBuyNow(product, selectedSize, quantity, selectedColor);
+
+    // Strict validation: size must be chosen first!
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSizeError('⚠️ Kripya aage badhne se pehle apna SIZE select karein!');
+      return;
+    }
+
+    if (selectedSize && product.sizeStock && (product.sizeStock[selectedSize] ?? 1) <= 0) {
+      setSizeError(`⚠️ Size "${selectedSize}" out of stock hai, kripya doosra size select karein.`);
+      return;
+    }
+
+    onBuyNow(product, selectedSize || 'Standard', quantity, selectedColor);
   };
 
   // Monthly EMI estimate: 33% down payment, remaining split in max 3 months
@@ -298,11 +323,22 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             )}
 
             {/* Size Selector */}
-            <div className="mb-4">
+            <div className={`mb-4 p-3 rounded-2xl transition border ${sizeError ? 'border-amber-400 bg-amber-400/5 ring-2 ring-amber-400/40' : 'border-slate-800/80 bg-slate-900/40'}`}>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                  Select Size:
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-white uppercase tracking-wider">
+                    Select Size:
+                  </label>
+                  {selectedSize ? (
+                    <span className="text-xs font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">
+                      Selected: {selectedSize}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-amber-400 animate-pulse">
+                      *(Size chunna jaruri hai)
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowSizeGuide(!showSizeGuide)}
@@ -313,21 +349,47 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 </button>
               </div>
 
+              {/* Alert message if customer tries to add/buy without choosing size */}
+              {sizeError && (
+                <div className="mb-3 p-2.5 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-200 text-xs font-black flex items-center gap-2 animate-bounce">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>{sizeError}</span>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
-                {product.sizes.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setSelectedSize(size)}
-                    className={`min-w-11 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                      selectedSize === size
-                        ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md scale-105'
-                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {product.sizes.map((size) => {
+                  const sizeQty = product.sizeStock?.[size];
+                  const isSoldOut = sizeQty !== undefined && sizeQty <= 0;
+                  const isSelected = selectedSize === size;
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      disabled={isSoldOut}
+                      onClick={() => {
+                        setSelectedSize(size);
+                        setSizeError(null);
+                      }}
+                      className={`min-w-14 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border flex flex-col items-center gap-0.5 ${
+                        isSoldOut
+                          ? 'bg-slate-900/60 text-slate-500 border-slate-800 line-through opacity-50 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50 scale-105 font-black'
+                          : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-amber-400/60'
+                      }`}
+                    >
+                      <span className="font-mono text-sm">{size}</span>
+                      <span className={`text-[9px] ${isSelected ? 'text-slate-900 font-bold' : isSoldOut ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {isSoldOut
+                          ? 'Out of Stock'
+                          : sizeQty !== undefined
+                          ? `${sizeQty} in stock`
+                          : 'In Stock'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Size Chart Tooltip / Drawer */}

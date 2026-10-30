@@ -8,8 +8,8 @@ interface SearchModalProps {
   onClose: () => void;
   products: Product[];
   onSelectProduct: (product: Product) => void;
-  onAddToCart: (product: Product, size: string) => void;
-  onBuyNow: (product: Product, size: string) => void;
+  onAddToCart: (product: Product, size: string, color?: string) => void;
+  onBuyNow: (product: Product, size: string, color?: string) => void;
 }
 
 export const SearchModal: React.FC<SearchModalProps> = ({
@@ -262,9 +262,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     onSelectProduct(p);
                   }}
                   onAddToCart={onAddToCart}
-                  onBuyNow={(p, size) => {
+                  onBuyNow={(p, size, color) => {
                     onClose();
-                    onBuyNow(p, size);
+                    onBuyNow(p, size, color);
                   }}
                 />
               ))}

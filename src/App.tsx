@@ -314,9 +314,15 @@ export default function App() {
   };
 
   // Cart Actions
-  const handleAddToCart = (product: Product, size: string, quantity = 1) => {
+  const handleAddToCart = (product: Product, size: string, quantity = 1, color?: string) => {
+    // If product has sizes and size is missing, open product details modal to force size selection
+    if (product.sizes && product.sizes.length > 0 && (!size || size.trim() === '')) {
+      setSelectedProduct(product);
+      return;
+    }
+    const finalSize = size || 'Standard';
     setCart((prevCart) => {
-      const itemKey = `${product.id}-${size}`;
+      const itemKey = `${product.id}-${finalSize}-${color || 'default'}`;
       const existingIdx = prevCart.findIndex((i) => i.id === itemKey);
       if (existingIdx >= 0) {
         const updated = [...prevCart];
@@ -329,7 +335,8 @@ export default function App() {
             id: itemKey,
             productId: product.id,
             product,
-            selectedSize: size,
+            selectedSize: finalSize,
+            selectedColor: color,
             quantity,
           },
         ];
@@ -351,8 +358,12 @@ export default function App() {
     setCart((prev) => prev.filter((item) => item.id !== cartItemId));
   };
 
-  const handleBuyNow = (product: Product, size: string, quantity = 1) => {
-    handleAddToCart(product, size, quantity);
+  const handleBuyNow = (product: Product, size: string, quantity = 1, color?: string) => {
+    if (product.sizes && product.sizes.length > 0 && (!size || size.trim() === '')) {
+      setSelectedProduct(product);
+      return;
+    }
+    handleAddToCart(product, size, quantity, color);
     setSelectedProduct(null);
     setIsCheckoutOpen(true);
   };
@@ -567,8 +578,8 @@ export default function App() {
                       key={prod.id}
                       product={prod}
                       onSelectProduct={setSelectedProduct}
-                      onAddToCart={(p, s) => handleAddToCart(p, s)}
-                      onBuyNow={(p, s) => handleBuyNow(p, s)}
+                      onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+                      onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
                     />
                   ))}
                 </div>
@@ -596,8 +607,8 @@ export default function App() {
                       key={prod.id}
                       product={prod}
                       onSelectProduct={setSelectedProduct}
-                      onAddToCart={(p, s) => handleAddToCart(p, s)}
-                      onBuyNow={(p, s) => handleBuyNow(p, s)}
+                      onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+                      onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
                     />
                   ))}
                 </div>
@@ -625,8 +636,8 @@ export default function App() {
                       key={prod.id}
                       product={prod}
                       onSelectProduct={setSelectedProduct}
-                      onAddToCart={(p, s) => handleAddToCart(p, s)}
-                      onBuyNow={(p, s) => handleBuyNow(p, s)}
+                      onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+                      onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
                     />
                   ))}
                 </div>
@@ -671,8 +682,8 @@ export default function App() {
                       key={prod.id}
                       product={prod}
                       onSelectProduct={setSelectedProduct}
-                      onAddToCart={(p, s) => handleAddToCart(p, s)}
-                      onBuyNow={(p, s) => handleBuyNow(p, s)}
+                      onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+                      onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
                     />
                   ))}
                 </div>
@@ -726,8 +737,8 @@ export default function App() {
                   key={prod.id}
                   product={prod}
                   onSelectProduct={setSelectedProduct}
-                  onAddToCart={(p, s) => handleAddToCart(p, s)}
-                  onBuyNow={(p, s) => handleBuyNow(p, s)}
+                  onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+                  onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
                 />
               ))}
             </div>
@@ -943,8 +954,8 @@ export default function App() {
         onClose={() => setIsSearchOpen(false)}
         products={products}
         onSelectProduct={setSelectedProduct}
-        onAddToCart={handleAddToCart}
-        onBuyNow={handleBuyNow}
+        onAddToCart={(p, s, c) => handleAddToCart(p, s, 1, c)}
+        onBuyNow={(p, s, c) => handleBuyNow(p, s, 1, c)}
       />
 
       {/* Top Box Offer & Banner Manager Modal */}

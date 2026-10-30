@@ -785,9 +785,21 @@ export const StoreService = {
       if (!parsed.appPublicUrl || parsed.appPublicUrl.includes('ais-pre') || parsed.appPublicUrl.includes('ais-dev')) {
         parsed.appPublicUrl = INITIAL_SETTINGS.appPublicUrl;
       }
+      if (!parsed.razorpayKeyId || parsed.razorpayKeyId === 'rzp_test_abhifashion') {
+        parsed.razorpayKeyId = 'rzp_live_TieQ54NWyK5uZj';
+      }
+      if (!parsed.paymentGatewayKeyId || parsed.paymentGatewayKeyId === 'rzp_test_abhifashion') {
+        parsed.paymentGatewayKeyId = 'rzp_live_TieQ54NWyK5uZj';
+      }
+      if (!parsed.kistPeRazorpayKeyId) {
+        parsed.kistPeRazorpayKeyId = 'rzp_live_TieQ54NWyK5uZj';
+      }
       return {
         ...INITIAL_SETTINGS,
         ...parsed,
+        razorpayKeyId: parsed.razorpayKeyId || 'rzp_live_TieQ54NWyK5uZj',
+        paymentGatewayKeyId: parsed.paymentGatewayKeyId || 'rzp_live_TieQ54NWyK5uZj',
+        kistPeRazorpayKeyId: parsed.kistPeRazorpayKeyId || 'rzp_live_TieQ54NWyK5uZj',
         emiMinAmount: parsed.emiMinAmount || 5000,
         emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33,
         appPublicUrl: parsed.appPublicUrl || INITIAL_SETTINGS.appPublicUrl,
@@ -900,12 +912,31 @@ export const StoreService = {
       emiDetails: payload.emiDetails,
     };
 
-    // Inventory management: automatically reduce stock
+    // Inventory management: automatically reduce total stock and size-specific stock
     const products = this.getProducts();
     payload.items.forEach((item) => {
       const prod = products.find((p) => p.id === item.productId);
       if (prod) {
         prod.stock = Math.max(0, prod.stock - item.quantity);
+        
+        // Automatic Size-wise stock deduction:
+        if (item.selectedSize) {
+          if (!prod.sizeStock) {
+            prod.sizeStock = {};
+          }
+          const currentSizeQty =
+            prod.sizeStock[item.selectedSize] !== undefined
+              ? prod.sizeStock[item.selectedSize]
+              : Math.max(0, Math.floor(prod.stock / (prod.sizes?.length || 1)));
+          prod.sizeStock[item.selectedSize] = Math.max(0, currentSizeQty - item.quantity);
+
+          // Keep total stock consistent with sum of size quantities
+          const allSizeStocks = Object.values(prod.sizeStock);
+          if (allSizeStocks.length >= (prod.sizes?.length || 1)) {
+            prod.stock = allSizeStocks.reduce((sum: number, q: number) => sum + (Number(q) || 0), 0);
+          }
+        }
+
         // Sync updated stock to Firestore
         try {
           setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
@@ -977,6 +1008,13 @@ export const StoreService = {
         const prod = products.find((p) => p.id === item.productId);
         if (prod) {
           prod.stock += item.quantity;
+          if (item.selectedSize && prod.sizeStock && prod.sizeStock[item.selectedSize] !== undefined) {
+            prod.sizeStock[item.selectedSize] += item.quantity;
+            const allSizeStocks = Object.values(prod.sizeStock);
+            if (allSizeStocks.length >= (prod.sizes?.length || 1)) {
+              prod.stock = allSizeStocks.reduce((sum: number, q: number) => sum + (Number(q) || 0), 0);
+            }
+          }
           try {
             setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
           } catch {}
@@ -991,6 +1029,13 @@ export const StoreService = {
         const prod = products.find((p) => p.id === item.productId);
         if (prod) {
           prod.stock = Math.max(0, prod.stock - item.quantity);
+          if (item.selectedSize && prod.sizeStock && prod.sizeStock[item.selectedSize] !== undefined) {
+            prod.sizeStock[item.selectedSize] = Math.max(0, prod.sizeStock[item.selectedSize] - item.quantity);
+            const allSizeStocks = Object.values(prod.sizeStock);
+            if (allSizeStocks.length >= (prod.sizes?.length || 1)) {
+              prod.stock = allSizeStocks.reduce((sum: number, q: number) => sum + (Number(q) || 0), 0);
+            }
+          }
           try {
             setDoc(doc(db, 'products', prod.id), prod).catch(() => {});
           } catch {}
