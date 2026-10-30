@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Truck, CreditCard, Zap } from 'lucide-react';
 import { CartItem, StoreSettings } from '../types';
+import { getCategoryFallbackImage } from '../utils/productHelpers';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -127,8 +128,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               >
                 {/* Thumbnail */}
                 <img
-                  src={item.product.images[0] || 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600'}
+                  src={item.product.images[0] || getCategoryFallbackImage(item.product.category)}
                   alt={item.product.name}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getCategoryFallbackImage(item.product.category);
+                  }}
                   className="w-20 h-24 rounded-xl object-cover bg-slate-900 shrink-0"
                 />
 

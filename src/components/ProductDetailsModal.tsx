@@ -155,10 +155,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                   src={getHdImageUrl(images[selectedImageIndex] || images[0], product.category)}
                   alt={product.name}
                   onError={(e) => {
-                    const fallback = getCategoryFallbackImage(product.category);
-                    if (e.currentTarget.src !== fallback) {
-                      e.currentTarget.src = fallback;
-                    }
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getCategoryFallbackImage(product.category);
                   }}
                   className="w-full h-full object-cover object-center transition duration-300 group-hover:scale-105"
                 />

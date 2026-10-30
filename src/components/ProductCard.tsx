@@ -102,10 +102,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           alt={product.name}
           loading="lazy"
           onError={(e) => {
-            const fallback = getCategoryFallbackImage(product?.category);
-            if (e.currentTarget.src !== fallback) {
-              e.currentTarget.src = fallback;
-            }
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = getCategoryFallbackImage(product?.category);
           }}
           className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
         />

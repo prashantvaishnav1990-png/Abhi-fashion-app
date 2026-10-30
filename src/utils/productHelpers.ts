@@ -60,21 +60,44 @@ export function getColorHex(colorName: string): string {
 
 import { resolveImageUrl } from './apiConfig';
 
-export const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
-  shirts: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1200&auto=format&fit=crop&q=90',
-  't-shirts': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=1200&auto=format&fit=crop&q=90',
-  jeans: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&auto=format&fit=crop&q=85',
-  trousers: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=1200&auto=format&fit=crop&q=85',
-  jackets: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=1200&auto=format&fit=crop&q=85',
-  footwear: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=1200&auto=format&fit=crop&q=85',
-  accessories: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&auto=format&fit=crop&q=85',
-  default: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1200&auto=format&fit=crop&q=90',
-};
+export function createCategorySvgPlaceholder(category?: string): string {
+  const cat = (category || 'Mens Wear').toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800">
+    <defs>
+      <linearGradient id="afBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0F172A"/>
+        <stop offset="50%" stop-color="#1E293B"/>
+        <stop offset="100%" stop-color="#0B132B"/>
+      </linearGradient>
+      <linearGradient id="afGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FCD34D"/>
+        <stop offset="50%" stop-color="#F59E0B"/>
+        <stop offset="100%" stop-color="#D97706"/>
+      </linearGradient>
+      <linearGradient id="afInner" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#1E293B"/>
+        <stop offset="100%" stop-color="#0F172A"/>
+      </linearGradient>
+    </defs>
+    <rect width="600" height="800" fill="url(#afBg)"/>
+    <rect x="24" y="24" width="552" height="752" rx="28" fill="none" stroke="url(#afGold)" stroke-width="3" stroke-opacity="0.35"/>
+    <rect x="180" y="240" width="240" height="200" rx="36" fill="url(#afInner)" stroke="url(#afGold)" stroke-width="4"/>
+    <g transform="translate(300, 310)">
+      <path d="M -22 -14 L 0 -28 L 22 -14 L 16 6 L -16 6 Z" fill="#FBBF24"/>
+      <circle cx="-22" cy="-16" r="4" fill="#FEF08A"/>
+      <circle cx="0" cy="-30" r="4.5" fill="#FEF08A"/>
+      <circle cx="22" cy="-16" r="4" fill="#FEF08A"/>
+      <text x="0" y="55" font-family="-apple-system, system-ui, sans-serif" font-weight="900" font-size="52" fill="url(#afGold)" text-anchor="middle">AF</text>
+    </g>
+    <text x="300" y="500" font-family="-apple-system, system-ui, sans-serif" font-weight="900" font-size="34" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">ABHI FASHION</text>
+    <text x="300" y="540" font-family="-apple-system, system-ui, sans-serif" font-weight="800" font-size="20" fill="#F59E0B" text-anchor="middle" letter-spacing="5">${cat}</text>
+    <text x="300" y="580" font-family="-apple-system, system-ui, sans-serif" font-weight="700" font-size="14" fill="#94A3B8" text-anchor="middle" letter-spacing="2">CHHUIKHADAN • LUXURY APPAREL</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
 export function getCategoryFallbackImage(category?: string): string {
-  if (!category) return CATEGORY_FALLBACK_IMAGES.default;
-  const key = category.toLowerCase().trim();
-  return CATEGORY_FALLBACK_IMAGES[key] || CATEGORY_FALLBACK_IMAGES.default;
+  return createCategorySvgPlaceholder(category);
 }
 
 /**
