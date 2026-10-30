@@ -505,7 +505,7 @@ async function startServer() {
     try {
       const targetUrl =
         (req.query.url as string) ||
-        'https://drive.google.com/uc?export=download&id=1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-';
+        'https://drive.google.com/uc?export=download&id=1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB';
       const buffer = await QRCode.toBuffer(targetUrl, {
         width: 1024,
         margin: 2,

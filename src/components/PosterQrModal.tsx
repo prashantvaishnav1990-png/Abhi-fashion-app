@@ -25,7 +25,7 @@ import { StoreSettings } from '../types';
 import { StoreService } from '../services/storeStorage';
 
 const VERIFIED_GOOGLE_DRIVE_URL =
-  'https://drive.google.com/uc?export=download&id=1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-';
+  'https://drive.google.com/uc?export=download&id=1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB';
 
 interface PosterQrModalProps {
   isOpen: boolean;
@@ -59,7 +59,18 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   const [showHowTo, setShowHowTo] = useState(false);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [printNotice, setPrintNotice] = useState(false);
+  const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
+  const [generatedPosterUrl, setGeneratedPosterUrl] = useState<string | null>(null);
+  const [showPosterSaveModal, setShowPosterSaveModal] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
+
+  const rawPhone = settings.supportPhone || settings.whatsappNumber || '9826198421';
+  const cleanDigits = rawPhone.replace(/\D/g, '');
+  const last10 = cleanDigits.slice(-10);
+  const formattedPhoneNumber =
+    last10.length === 10
+      ? `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`
+      : `+91 ${rawPhone.replace(/^\+?91/, '').trim()}`;
 
   // Sync with settings whenever modal opens or settings update
   useEffect(() => {
@@ -125,59 +136,225 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
     }, 2500);
   };
 
-  // Android & Mobile proof download and share
-  const handleDownloadQrPng = async () => {
-    if (!qrDataUrl) return;
+  // Canvas generator for full professional shop poster image
+  const generatePosterCanvas = (qrSource: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 1680;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(qrSource);
 
-    // 1. Try Native Web Share API first (Opens Gallery / WhatsApp / Print sheet on Android phone)
-    try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        const res = await fetch(qrDataUrl);
-        const blob = await res.blob();
-        const file = new File([blob], 'AbhiFashion-Store-QR.png', { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: 'ABHI FASHION - Poster Barcode',
-            text: `ABHI FASHION Official Store App Download Barcode:\n${activeDownloadUrl}`,
-            files: [file],
-          });
-          setShareSuccess('Shared / Saved successfully!');
-          setTimeout(() => setShareSuccess(null), 3000);
-          return;
+      const drawRoundRect = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        r: number,
+        fill?: string,
+        stroke?: string,
+        strokeWidth?: number
+      ) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill) {
+          ctx.fillStyle = fill;
+          ctx.fill();
         }
-      }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.warn('Native share fallback:', err);
-      } else {
-        return; // User cancelled share sheet
-      }
-    }
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = strokeWidth || 2;
+          ctx.stroke();
+        }
+      };
 
-    // 2. Direct HTTP server download (Android DownloadManager triggers for real HTTP file URLs)
+      // 1. Crisp White Background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 1200, 1680);
+
+      // 2. Elegant Outer Gold Border
+      drawRoundRect(24, 24, 1152, 1632, 36, undefined, '#F59E0B', 10);
+      drawRoundRect(40, 40, 1120, 1600, 26, undefined, '#FEF3C7', 2);
+
+      // 3. Top Tag: OFFICIAL STORE APPLICATION
+      drawRoundRect(400, 68, 400, 48, 24, '#0B132B');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 18px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('OFFICIAL STORE APPLICATION', 600, 99);
+
+      // 4. Store Name
+      ctx.fillStyle = '#0B132B';
+      ctx.font = '900 64px system-ui, -apple-system, sans-serif';
+      ctx.fillText((settings.storeName || 'ABHI FASHION').toUpperCase(), 600, 190);
+
+      // 5. Store Tagline
+      ctx.fillStyle = '#D97706';
+      ctx.font = '800 24px system-ui, -apple-system, sans-serif';
+      ctx.fillText(
+        (settings.storeTagline || "Men's Luxury & Streetwear Store").toUpperCase(),
+        600,
+        230
+      );
+
+      // 6. Address
+      ctx.fillStyle = '#475569';
+      ctx.font = '600 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText(
+        `📍 ${settings.storeAddress || 'Bazar Line, Chhuikhadan (Dist. KCG, C.G.)'}`,
+        600,
+        268
+      );
+
+      // 7. Divider Line
+      const grad = ctx.createLinearGradient(160, 300, 1040, 300);
+      grad.addColorStop(0, 'rgba(245, 158, 11, 0.1)');
+      grad.addColorStop(0.5, '#F59E0B');
+      grad.addColorStop(1, 'rgba(245, 158, 11, 0.1)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(160, 305);
+      ctx.lineTo(1040, 305);
+      ctx.stroke();
+
+      // 8. Callout Title: SCAN TO DOWNLOAD APP
+      ctx.fillStyle = '#0B132B';
+      ctx.font = '900 36px system-ui, -apple-system, sans-serif';
+      ctx.fillText('📱 SCAN TO DOWNLOAD OFFICIAL APP', 600, 365);
+
+      ctx.fillStyle = '#64748B';
+      ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+      ctx.fillText(
+        'Google Lens, Phone Camera ya Paytm / PhonePe se scan karein!',
+        600,
+        405
+      );
+
+      // 9. Load & Draw QR Code Image
+      const qrImg = new Image();
+      qrImg.crossOrigin = 'anonymous';
+      qrImg.onload = () => {
+        // Outer card behind QR
+        drawRoundRect(340, 450, 520, 520, 30, '#FFFFFF', '#0B132B', 4);
+
+        // Draw QR image
+        ctx.drawImage(qrImg, 365, 475, 470, 470);
+
+        // Center AF Badge
+        drawRoundRect(550, 660, 100, 100, 24, '#F59E0B', '#FFFFFF', 6);
+        ctx.fillStyle = '#0B132B';
+        ctx.font = '900 46px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('AF', 600, 730);
+
+        // 10. Store Highlights (Useful information only!)
+        // Feature 1: Express Delivery
+        drawRoundRect(140, 1020, 920, 85, 20, '#ECFDF5', '#A7F3D0', 2);
+        ctx.fillStyle = '#065F46';
+        ctx.font = '800 24px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('⚡ 10 Minute Express Delivery:', 170, 1070);
+        ctx.fillStyle = '#1F2937';
+        ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Chhuikhadan me matra 10 minute me Free Home Delivery!', 540, 1070);
+
+        // Feature 2: Cards & EMI
+        drawRoundRect(140, 1125, 920, 85, 20, '#ECFEFF', '#A5F3FC', 2);
+        ctx.fillStyle = '#0E7490';
+        ctx.font = '800 24px system-ui, -apple-system, sans-serif';
+        ctx.fillText('💳 Cards & Credit Card EMI:', 170, 1175);
+        ctx.fillStyle = '#1F2937';
+        ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Debit/Credit Card, RuPay, Visa, MasterCard Accepted', 500, 1175);
+
+        // Feature 3: Easy EMI
+        drawRoundRect(140, 1230, 920, 85, 20, '#FFFBEB', '#FDE68A', 2);
+        ctx.fillStyle = '#B45309';
+        ctx.font = '800 24px system-ui, -apple-system, sans-serif';
+        ctx.fillText('🛍️ Easy EMI (किस्त पे):', 170, 1280);
+        ctx.fillStyle = '#1F2937';
+        ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+        ctx.fillText('₹5,000+ orders par 33% Down Payment & 0% Byaj Kist', 450, 1280);
+
+        // 11. Footer Phone & Contact
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(140, 1370);
+        ctx.lineTo(1060, 1370);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#0B132B';
+        ctx.font = '900 30px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Store Contact / WhatsApp: ${formattedPhoneNumber}`, 600, 1435);
+
+        ctx.fillStyle = '#64748B';
+        ctx.font = '600 20px system-ui, -apple-system, sans-serif';
+        ctx.fillText('ABHI FASHION • Bazar Line, Chhuikhadan (Dist. KCG, Chhattisgarh)', 600, 1480);
+
+        resolve(canvas.toDataURL('image/png', 1.0));
+      };
+
+      qrImg.onerror = () => {
+        resolve(qrSource);
+      };
+
+      qrImg.src = qrSource;
+    });
+  };
+
+  // Full Poster Download Handler (Android proof + Gallery Save Sheet)
+  const handleDownloadPoster = async () => {
+    if (!qrDataUrl) return;
+    setIsGeneratingPoster(true);
+
     try {
-      const serverUrl = `/api/poster-qr/download?url=${encodeURIComponent(activeDownloadUrl)}`;
-      const link = document.createElement('a');
-      link.href = serverUrl;
-      link.download = 'AbhiFashion-App-Download-QR.png';
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const posterData = await generatePosterCanvas(qrDataUrl);
+      setGeneratedPosterUrl(posterData);
+      setShowPosterSaveModal(true);
 
-      setShareSuccess('QR Code downloading to your phone!');
-      setTimeout(() => setShareSuccess(null), 3000);
-    } catch {
-      // 3. Fallback: Data URL download for standard browsers
-      const link = document.createElement('a');
-      link.href = qrDataUrl;
-      link.download = 'AbhiFashion-App-Download-QR.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setShareSuccess('QR Code downloaded!');
-      setTimeout(() => setShareSuccess(null), 3000);
+      // Trigger standard anchor download
+      const a = document.createElement('a');
+      a.href = posterData;
+      a.download = 'ABHI-FASHION-Store-Poster.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setShareSuccess('Poster taiyar hai! Gallery me save ya WhatsApp karein.');
+      setTimeout(() => setShareSuccess(null), 4000);
+    } catch (e) {
+      console.error(e);
+      setShareSuccess('Poster tayar ho gaya!');
+    } finally {
+      setIsGeneratingPoster(false);
     }
+  };
+
+  // Barcode-only Download Handler
+  const handleDownloadOnlyQr = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = 'ABHI-FASHION-App-QR.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setShareSuccess('Barcode PNG downloaded!');
+    setTimeout(() => setShareSuccess(null), 3000);
   };
 
   // Direct 1-tap WhatsApp Share (Sends image link to flex printer or contacts)
@@ -385,11 +562,20 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleDownloadQrPng}
-                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
+                onClick={handleDownloadPoster}
+                disabled={isGeneratingPoster}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
               >
                 <Download className="w-4 h-4 text-slate-950" />
-                <span>Download QR Image</span>
+                <span>{isGeneratingPoster ? 'Generating...' : 'Download Full Poster'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadOnlyQr}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Barcode Only</span>
               </button>
               <button
                 type="button"
@@ -414,7 +600,7 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
           <div className="border border-slate-700 rounded-2xl p-4 bg-slate-950/80">
             <div className="text-center mb-3">
               <span className="text-[11px] font-bold text-amber-400 uppercase tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-                Live Poster Preview (Ready to Print)
+                Live Poster Preview (Clean Print Ready)
               </span>
             </div>
 
@@ -461,8 +647,8 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
               {/* QR Code In Center */}
               <div className="my-4 flex flex-col items-center justify-center">
                 <div
-                  onClick={handleDownloadQrPng}
-                  title="Click to Download or Share"
+                  onClick={handleDownloadOnlyQr}
+                  title="Click to Download Barcode"
                   className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-xl relative group cursor-pointer hover:scale-102 transition"
                 >
                   {qrDataUrl ? (
@@ -484,38 +670,30 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                   </div>
                 </div>
 
-                {/* Mobile Long Press Tip */}
-                <div className="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-center max-w-xs">
-                  <p className="text-[10px] text-amber-900 font-bold leading-tight">
-                    💡 <strong>Mobile Tip:</strong> Photo gallery me save karne ke liye upar Barcode par <strong>1 second ungli daba kar rakhein (Long Press)</strong> aur <strong>"Download image"</strong> chunein!
-                  </p>
+                <div className="mt-3 text-center">
+                  <span className="inline-block px-3 py-1 bg-amber-50 border border-amber-300 rounded-full text-[10px] font-black text-slate-900 tracking-wider uppercase">
+                    SCAN TO INSTALL • 100% FREE OFFICIAL APP
+                  </span>
                 </div>
-
-                <span className="text-[11px] font-mono font-extrabold text-[#0B132B] mt-2 break-all max-w-[280px] text-center px-2 py-0.5 rounded-md bg-amber-50 border border-amber-300">
-                  {activeDownloadUrl}
-                </span>
-                <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest mt-1">
-                  Direct 1-Click App Download • 100% Free
-                </span>
               </div>
 
               {/* Store Highlights / Key Benefits */}
               <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-200 text-xs">
-                <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+                <div className="flex items-center gap-2 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
                   <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span className="text-[11px] text-slate-800 font-bold">
                     ⚡ <strong>10 Minute Express Delivery:</strong> Chhuikhadan me matra 10 minute me Free Home Delivery!
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 bg-cyan-50 p-2 rounded-xl border border-cyan-200">
+                <div className="flex items-center gap-2 bg-cyan-50 p-2.5 rounded-xl border border-cyan-200">
                   <CreditCard className="w-4 h-4 text-cyan-700 shrink-0" />
                   <span className="text-[11px] text-slate-800 font-bold">
                     💳 <strong>Cards & Credit Card EMI:</strong> Debit/Credit Card & Bank EMI (HDFC, SBI, ICICI, Axis)
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 bg-amber-50 p-2 rounded-xl border border-amber-200">
+                <div className="flex items-center gap-2 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
                   <CreditCard className="w-4 h-4 text-amber-600 shrink-0" />
                   <span className="text-[11px] text-slate-800 font-bold">
                     ⚡ <strong>Easy EMI (किस्त):</strong> ₹5,000+ orders par 33% Down Payment & Max 3 Mahine EMI
@@ -526,7 +704,7 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
               {/* Footer Phone Number */}
               <div className="mt-4 pt-3 border-t-2 border-dashed border-slate-300 text-center">
                 <p className="text-[11px] font-bold text-slate-700">
-                  Store Contact / WhatsApp: <span className="text-[#0B132B] font-black">+91 {settings.whatsappNumber || '9826198421'}</span>
+                  Store Contact / WhatsApp: <span className="text-[#0B132B] font-black">{formattedPhoneNumber}</span>
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">
                   ABHI FASHION • Bazar Line, Chhuikhadan (Dist. KCG, Chhattisgarh)
@@ -543,13 +721,13 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
             </h4>
             <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-300 leading-relaxed">
               <li>
-                <strong>Flex / Standee Printing:</strong> Upar diye gaye <strong>"Download QR Image"</strong> ya <strong>"Share on WA"</strong> button se Barcode PNG flex printing shop ko WhatsApp kar sakte hain.
+                <strong>Full Poster (पूरा पोस्टर):</strong> <strong>"Download Full Poster"</strong> dabayein — isme high-resolution 1200x1680 poster download hoga jisme na mobile tip hogi aur na bada link, bilkul clean dukan poster ready!
               </li>
               <li>
-                <strong>Dukaan me Direct Print:</strong> <strong>"Print Poster"</strong> button dabayein aur apne printer se A4 size photo paper ya glossy sheet par print karke counter par standee me laga dein.
+                <strong>Flex / Standee Printing:</strong> <strong>"Share on WA (Flex Shop)"</strong> se poster flex shop wale ko direct bhej kar standee ya banner print karwayein.
               </li>
               <li>
-                <strong>Automatic Scan:</strong> Koi bhi customer apne phone ke Camera, Google Lens, ya Paytm/GPay se scan karega, toh turant Google Drive se Abhi Fashion App download hone lagega!
+                <strong>Counter Standee / A4 Print:</strong> <strong>"Print Poster"</strong> button se A4 glossy sheet par print karke dukaan ke billing counter par standee me lagayein.
               </li>
             </ul>
           </div>
@@ -557,14 +735,23 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
 
         {/* Sticky Mobile Modal Footer (Always Visible!) */}
         <div className="p-3 sm:p-4 bg-[#0B132B] border-t border-slate-800 flex flex-wrap justify-between items-center gap-2 sticky bottom-0 z-10 shadow-2xl">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleDownloadQrPng}
-              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
+              onClick={handleDownloadPoster}
+              disabled={isGeneratingPoster}
+              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
             >
               <Download className="w-4 h-4 text-slate-950" />
-              <span>Download Barcode</span>
+              <span>{isGeneratingPoster ? 'Generating...' : 'Download Poster'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadOnlyQr}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition cursor-pointer shadow-sm active:scale-95"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Barcode Only</span>
             </button>
             <button
               type="button"
@@ -573,7 +760,7 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
               title="Share on WhatsApp"
             >
               <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">WhatsApp Share</span>
+              <span className="hidden sm:inline">WhatsApp</span>
             </button>
           </div>
 
@@ -596,6 +783,68 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Android / WebView Proof Save Sheet Modal */}
+        {showPosterSaveModal && generatedPosterUrl && (
+          <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4">
+            <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <Download className="w-5 h-5 text-amber-400" />
+                    <span>Poster Download Ready!</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Flex Printing & Counter Standee Poster</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPosterSaveModal(false)}
+                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Poster Preview */}
+              <div className="bg-white rounded-2xl p-2 border-2 border-amber-400 max-h-[48vh] overflow-hidden flex items-center justify-center shadow-inner">
+                <img
+                  src={generatedPosterUrl}
+                  alt="Generated ABHI FASHION Poster"
+                  className="w-full h-auto max-h-[46vh] object-contain rounded-xl select-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <a
+                  href={generatedPosterUrl}
+                  download="ABHI-FASHION-Store-Poster.png"
+                  className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-98 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition"
+                >
+                  <Download className="w-4 h-4 text-slate-950" />
+                  <span>Save to Phone Gallery / Files</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleShareToWhatsApp}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Share on WhatsApp (Flex Print Shop)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPosterSaveModal(false)}
+                  className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
