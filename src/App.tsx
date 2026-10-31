@@ -147,13 +147,12 @@ export default function App() {
       } else {
         setIsDownloadView(false);
       }
-      if (
-        path.startsWith('/admin') ||
-        params.get('app') === 'admin' ||
-        params.get('tab') === 'admin'
-      ) {
+
+      // Only switch app mode if the URL explicitly requests it.
+      // Never unexpectedly force Admin mode back to Customer mode!
+      if (path.startsWith('/admin') || params.get('app') === 'admin' || params.get('tab') === 'admin') {
         setAppMode('admin');
-      } else {
+      } else if (params.get('app') === 'customer') {
         setAppMode('customer');
       }
     };
@@ -282,16 +281,6 @@ export default function App() {
     },
     10,
     'CustomerActiveTab'
-  );
-
-  // Priority 5: Switch back from admin to customer storefront if opened in unified mode
-  useBackHandler(
-    appMode === 'admin' && typeof window !== 'undefined' && (window as any).__APP_TARGET_MODE__ !== 'admin',
-    () => {
-      handleSwitchMode('customer');
-    },
-    5,
-    'AdminModeToCustomer'
   );
 
   // Load store data and subscribe to changes

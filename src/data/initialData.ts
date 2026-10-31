@@ -312,5 +312,5 @@ export const INITIAL_SETTINGS: StoreSettings = {
   kistPeMerchantLink: 'upi://pay?pa=8982147180@ybl&pn=ABHI%20FASHION&cu=INR&tn=KistPe%20Down%20Payment',
   kistPeAppName: 'Kist Pe Merchant (किस्त पे)',
   kistPeRazorpayKeyId: 'rzp_live_TieQ54NWyK5uZj',
-  appPublicUrl: 'https://drive.google.com/uc?export=download&id=1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB',
+  appPublicUrl: 'https://drive.google.com/uc?export=download&id=1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz',
 };

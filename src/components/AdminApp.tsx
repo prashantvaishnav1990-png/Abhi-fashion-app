@@ -65,12 +65,6 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
   // Phone back button: close incoming order popup or poster modal
   useBackHandler(Boolean(incomingOrder), () => setIncomingOrder(null), 25, 'AdminIncomingOrderAlert');
   useBackHandler(isPosterModalOpen, () => setIsPosterModalOpen(false), 20, 'AdminPosterModal');
-  useBackHandler(
-    !isPosterModalOpen && !incomingOrder && typeof window !== 'undefined' && (window as any).__APP_TARGET_MODE__ !== 'admin',
-    () => onSwitchToCustomerApp(),
-    5,
-    'AdminReturnToStorefront'
-  );
 
   // Load store data
   const refreshData = () => {

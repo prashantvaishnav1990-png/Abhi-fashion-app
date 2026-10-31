@@ -794,7 +794,8 @@ export const StoreService = {
         parsed.appPublicUrl.includes('ais-pre') ||
         parsed.appPublicUrl.includes('ais-dev') ||
         parsed.appPublicUrl.includes('1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-') ||
-        parsed.appPublicUrl.includes('1pwNj1FeWqcAZekNE1bj8P9ipULcNf8Qo')
+        parsed.appPublicUrl.includes('1pwNj1FeWqcAZekNE1bj8P9ipULcNf8Qo') ||
+        parsed.appPublicUrl.includes('1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB')
       ) {
         parsed.appPublicUrl = INITIAL_SETTINGS.appPublicUrl;
       }

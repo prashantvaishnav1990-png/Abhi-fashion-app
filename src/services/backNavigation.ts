@@ -99,14 +99,7 @@ class BackNavigationService {
   public unregister(id: string) {
     const idx = this.stack.findIndex((item) => item.id === id);
     if (idx !== -1) {
-      const [removed] = this.stack.splice(idx, 1);
-      // If removed manually from UI while history was pushed, pop the history entry cleanly
-      if (removed.hasHistory && typeof window !== 'undefined') {
-        this.programmaticPopCount++;
-        try {
-          window.history.back();
-        } catch {}
-      }
+      this.stack.splice(idx, 1);
     }
   }
 

@@ -26,7 +26,7 @@ import { StoreService } from '../services/storeStorage';
 import { useBackHandler } from '../hooks/useBackHandler';
 
 const VERIFIED_GOOGLE_DRIVE_URL =
-  'https://drive.google.com/uc?export=download&id=1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB';
+  'https://drive.google.com/uc?export=download&id=1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz';
 
 interface PosterQrModalProps {
   isOpen: boolean;
@@ -65,10 +65,9 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   const [showPosterSaveModal, setShowPosterSaveModal] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
-  // Phone back button: close sub-modals or full poster modal
+  // Phone back button: close sub-modals within poster modal
   useBackHandler(isOpen && showPosterSaveModal, () => setShowPosterSaveModal(false), 26, 'PosterSaveModal');
   useBackHandler(isOpen && !showPosterSaveModal && showHowTo, () => setShowHowTo(false), 24, 'PosterHowTo');
-  useBackHandler(isOpen && !showPosterSaveModal && !showHowTo, onClose, 20, 'PosterQrModal');
 
   const rawPhone =
     settings.whatsappNumber && !settings.whatsappNumber.includes('98261')
