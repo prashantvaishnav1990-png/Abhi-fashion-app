@@ -276,8 +276,8 @@ export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'ABHI FASHION',
   storeTagline: "Men's Luxury & Streetwear Store",
   storeAddress: 'Bazar Line, Chhuikhadan',
-  whatsappNumber: '9826198421',
-  supportPhone: '+91 98261 98421',
+  whatsappNumber: '8982147180',
+  supportPhone: '+91 89821 47180',
   deliveryCharges: 50,
   deliveryChhuikhadanFee: 0, // Free for Chhuikhadan
   deliveryUnder10kmFee: 50,   // ₹50 for under 10 km

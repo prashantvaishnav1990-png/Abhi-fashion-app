@@ -202,7 +202,7 @@ export const AppDownloadView: React.FC<AppDownloadViewProps> = ({
       {/* Footer */}
       <footer className="text-center pt-8 text-[11px] text-slate-400 space-y-1">
         <p>© {new Date().getFullYear()} {settings.storeName} • Bazar Line, Chhuikhadan (Dist. KCG, Chhattisgarh)</p>
-        <p>Support WhatsApp: +91 {settings.whatsappNumber || '9826198421'}</p>
+        <p>Support WhatsApp: +91 {settings.whatsappNumber || '8982147180'}</p>
       </footer>
     </div>
   );

@@ -82,7 +82,7 @@ ${order.notes ? `*Notes:* ${order.notes}\n` : ''}-------------------------------
 Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya confirm karein! 🙏`;
 
     // Clean phone number (strip spaces, +, hyphens)
-    const cleanPhone = (settings.whatsappNumber || '9826198421').replace(/\D/g, '');
+    const cleanPhone = (settings.whatsappNumber || '8982147180').replace(/\D/g, '');
     const encoded = encodeURIComponent(message);
     const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
     const whatsappUrl = `https://wa.me/${targetPhone}?text=${encoded}`;
@@ -91,7 +91,7 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya c
 
   const handleSendToSms = () => {
     if (!order) return;
-    const cleanPhone = (settings.supportPhone || '9826198421').replace(/\D/g, '');
+    const cleanPhone = (settings.supportPhone || '8982147180').replace(/\D/g, '');
     const smsBody = `NEW ORDER ${order.orderNumber} at ABHI FASHION by ${order.customer.name}, Amount: Rs ${order.totalAmount}, Mobile: ${order.customer.mobile}`;
     const encoded = encodeURIComponent(smsBody);
     window.location.href = `sms:+91${cleanPhone}?body=${encoded}`;

@@ -162,7 +162,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Dynamic Kist Pe 33% Down Payment QR Code Generation
   useEffect(() => {
     if (isEmiEligible) {
-      const upiTarget = settings.kistPeUpiId || settings.collectUpiId || '9826198421@kistpe';
+      const upiTarget = settings.kistPeUpiId || settings.collectUpiId || '8982147180@ybl';
       PaymentGatewayService.generateKistPeQrCode({
         upiId: upiTarget,
         amount: downPaymentAmount,
@@ -352,7 +352,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     let emiBlock = '';
     if (isEmi) {
       emiBlock = `\n⚡ *KIST PE (किस्त पे) / EASY EMI DETAILS:*
-• *Kist Pe Merchant:* ${settings.kistPeAppName || 'Kist Pe'} (${settings.kistPeUpiId || '9826198421@kistpe'})
+• *Kist Pe Merchant:* ${settings.kistPeAppName || 'Kist Pe'} (${settings.kistPeUpiId || '8982147180@ybl'})
 • *Order Total:* ₹${totalAmount}
 • *33% Down Payment:* ₹${downPaymentAmount} ${effectiveKistUtr ? `(Paid via UPI - UTR: ${effectiveKistUtr})` : '(To be paid upfront)'}
 • *Remaining Financed:* ₹${financedAmount}
@@ -400,7 +400,7 @@ ${itemLines}
 ${notesText ? `*Customer Note:* ${notesText}\n` : ''}---------------------------------------
 Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya dispatch karein! 🙏`;
 
-    const cleanOwnerPhone = (settings.whatsappNumber || '9826198421').replace(/\D/g, '');
+    const cleanOwnerPhone = (settings.whatsappNumber || '8982147180').replace(/\D/g, '');
     const waUrl = `https://wa.me/${cleanOwnerPhone.startsWith('91') ? cleanOwnerPhone : `91${cleanOwnerPhone}`}?text=${encodeURIComponent(waMsg)}`;
 
     try {
@@ -618,11 +618,11 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
     if (selectedPayment === 'upi_mandate' || selectedPayment === 'emi') {
       const trimmedUpi = upiId.trim();
       if (!trimmedUpi) {
-        setErrorMsg('Apna UPI ID (VPA) darj karein taaki dukan (ABHI FASHION) aapko EMI Mandate bhej sake (e.g. 9826198421@paytm ya rahul@okaxis)');
+        setErrorMsg('Apna UPI ID (VPA) darj karein taaki dukan (ABHI FASHION) aapko EMI Mandate bhej sake (e.g. 8982147180@paytm ya rahul@okaxis)');
         return;
       }
       if (!trimmedUpi.includes('@') || trimmedUpi.startsWith('@') || trimmedUpi.endsWith('@')) {
-        setErrorMsg('Kripya valid UPI ID darj karein jisme "@" ho (jaise 9826198421@paytm ya yourname@okhdfcbank)');
+        setErrorMsg('Kripya valid UPI ID darj karein jisme "@" ho (jaise 8982147180@paytm ya yourname@okhdfcbank)');
         return;
       }
     }
@@ -646,7 +646,7 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
   };
 
   const handleOpenKistPeApp = () => {
-    const upiTarget = settings.kistPeUpiId || settings.collectUpiId || '9826198421@kistpe';
+    const upiTarget = settings.kistPeUpiId || settings.collectUpiId || '8982147180@ybl';
     const deepLink = PaymentGatewayService.getKistPeDeepLink({
       upiId: upiTarget,
       amount: downPaymentAmount,
@@ -824,7 +824,7 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
                     id="checkout-mobile"
                     required
                     maxLength={10}
-                    placeholder="9826198421"
+                    placeholder="8982147180"
                     value={formData.mobile}
                     onChange={handleInputChange}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-11 pr-3 py-2.5 text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400 text-xs font-mono font-bold"
@@ -1770,12 +1770,12 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
                                 Exact Amount: ₹{downPaymentAmount.toLocaleString('en-IN')}
                               </div>
                               <div className="text-[10px] text-slate-600 mt-0.5">
-                                Merchant: <strong>{settings.storeName}</strong> ({settings.kistPeUpiId || '9826198421@kistpe'})
+                                Merchant: <strong>{settings.storeName}</strong> ({settings.kistPeUpiId || '8982147180@ybl'})
                               </div>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(settings.kistPeUpiId || '9826198421@kistpe');
+                                  navigator.clipboard.writeText(settings.kistPeUpiId || '8982147180@ybl');
                                   setCopiedKistUpi(true);
                                   setTimeout(() => setCopiedKistUpi(false), 2000);
                                 }}
@@ -1797,7 +1797,7 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
                             type="text"
                             value={upiId}
                             onChange={(e) => setUpiId(e.target.value)}
-                            placeholder="e.g. 9826198421@paytm ya rahul@okaxis"
+                            placeholder="e.g. 8982147180@paytm ya rahul@okaxis"
                             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400 text-xs font-mono"
                           />
 

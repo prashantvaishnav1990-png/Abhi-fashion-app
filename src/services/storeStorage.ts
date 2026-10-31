@@ -140,8 +140,15 @@ async function syncSettingsFromServer() {
     if (!res.ok) return;
     const data = await res.json();
     if (data && data.settings && typeof data.settings === 'object') {
+      const s = data.settings;
+      if (!s.whatsappNumber || s.whatsappNumber.includes('98261') || s.whatsappNumber === '9826198421') {
+        s.whatsappNumber = '8982147180';
+      }
+      if (!s.supportPhone || s.supportPhone.includes('98261')) {
+        s.supportPhone = '+91 89821 47180';
+      }
       try {
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(s));
       } catch {}
       notifyListeners();
     }
@@ -800,9 +807,17 @@ export const StoreService = {
       if (!parsed.kistPeRazorpayKeyId) {
         parsed.kistPeRazorpayKeyId = 'rzp_live_TieQ54NWyK5uZj';
       }
+      if (!parsed.whatsappNumber || parsed.whatsappNumber.includes('98261') || parsed.whatsappNumber === '9826198421') {
+        parsed.whatsappNumber = '8982147180';
+      }
+      if (!parsed.supportPhone || parsed.supportPhone.includes('98261')) {
+        parsed.supportPhone = '+91 89821 47180';
+      }
       return {
         ...INITIAL_SETTINGS,
         ...parsed,
+        whatsappNumber: (!parsed.whatsappNumber || parsed.whatsappNumber.includes('98261')) ? '8982147180' : parsed.whatsappNumber,
+        supportPhone: (!parsed.supportPhone || parsed.supportPhone.includes('98261')) ? '+91 89821 47180' : parsed.supportPhone,
         razorpayKeyId: parsed.razorpayKeyId || 'rzp_live_TieQ54NWyK5uZj',
         paymentGatewayKeyId: parsed.paymentGatewayKeyId || 'rzp_live_TieQ54NWyK5uZj',
         kistPeRazorpayKeyId: parsed.kistPeRazorpayKeyId || 'rzp_live_TieQ54NWyK5uZj',
@@ -843,7 +858,7 @@ export const StoreService = {
           createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
           customer: {
             name: 'Vikram Singh Thakur',
-            mobile: '9826198421',
+            mobile: '8982147180',
             address: 'Near Old Bus Stand, Ward 4',
             city: 'Chhuikhadan',
             state: 'Chhattisgarh',

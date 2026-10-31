@@ -189,8 +189,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSendingPushTest, setIsSendingPushTest] = useState(false);
 
   const [notifyConfig, setNotifyConfig] = useState(() => ({
-    ownerPhone: safeSettings?.supportPhone || safeSettings?.whatsappNumber || '9826198421',
-    ownerWhatsApp: safeSettings?.whatsappNumber || safeSettings?.supportPhone || '9826198421',
+    ownerPhone: safeSettings?.supportPhone || safeSettings?.whatsappNumber || '8982147180',
+    ownerWhatsApp: safeSettings?.whatsappNumber || safeSettings?.supportPhone || '8982147180',
     enablePush: true,
     enableSms: true,
     enableWhatsApp: true,
@@ -1585,7 +1585,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               upiMandateVpa: e.target.value,
                             })
                           }
-                          placeholder="e.g. 9826198421@paytm or abhifashion@upi"
+                          placeholder="e.g. 8982147180@paytm or abhifashion@upi"
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
                         />
                       </div>
@@ -1861,7 +1861,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         PaymentGatewayService.openRazorpayPayment({
                           amount: 999,
                           customerName: 'Test Customer (Abhishek Store)',
-                          customerMobile: localSettings.whatsappNumber || '9826198421',
+                          customerMobile: localSettings.whatsappNumber || '8982147180',
                           settings: localSettings,
                           description: 'Test Razorpay Payment Popup',
                           onSuccess: (pId) => {
@@ -2029,7 +2029,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onSaveSettings(localSettings);
+                  const clean = (localSettings.whatsappNumber || '8982147180').replace(/\D/g, '').slice(-10);
+                  const formatted = clean.length === 10 ? `+91 ${clean.slice(0, 5)} ${clean.slice(5)}` : '+91 89821 47180';
+                  const toSave = {
+                    ...localSettings,
+                    whatsappNumber: clean,
+                    supportPhone: formatted,
+                  };
+                  setLocalSettings(toSave);
+                  onSaveSettings(toSave);
                   setSettingsSavedToast(true);
                   setTimeout(() => setSettingsSavedToast(false), 2500);
                 }}
@@ -2264,7 +2272,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       })
                     }
                     className="w-full bg-transparent text-white font-mono focus:outline-hidden"
-                    placeholder="9826198421"
+                    placeholder="8982147180"
                   />
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
@@ -2362,7 +2370,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       })
                     }
                     className="w-full bg-transparent text-white font-mono focus:outline-hidden"
-                    placeholder="9826198421"
+                    placeholder="8982147180"
                   />
                 </div>
               </div>

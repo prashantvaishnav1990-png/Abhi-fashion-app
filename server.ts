@@ -98,8 +98,8 @@ export interface ServerNotificationConfig {
 }
 
 const DEFAULT_NOTIFY_CONFIG: ServerNotificationConfig = {
-  ownerPhone: process.env.OWNER_ALERT_PHONE || '9826198421',
-  ownerWhatsApp: '9826198421',
+  ownerPhone: process.env.OWNER_ALERT_PHONE || '8982147180',
+  ownerWhatsApp: '8982147180',
   enablePush: true,
   enableSms: true,
   enableWhatsApp: true,
@@ -642,7 +642,7 @@ async function startServer() {
   app.post('/api/notify/test-sms', async (req, res) => {
     const { phone } = req.body || {};
     const cfg = getNotificationConfig();
-    const targetPhone = phone || cfg.ownerPhone || '9826198421';
+    const targetPhone = phone || cfg.ownerPhone || '8982147180';
 
     const testMessage =
       'ABHI FASHION: Test SMS successful! Aapki dukaan par naye orders aane par yahan alert aayega. Bazar Line, Chhuikhadan.';
@@ -655,7 +655,7 @@ async function startServer() {
   app.post('/api/notify/test-whatsapp', async (req, res) => {
     const { phone } = req.body || {};
     const cfg = getNotificationConfig();
-    const targetPhone = phone || cfg.ownerWhatsApp || '9826198421';
+    const targetPhone = phone || cfg.ownerWhatsApp || '8982147180';
 
     const testMessage =
       '🛍️ *ABHI FASHION - WhatsApp Alert Test*\n\nAapka WhatsApp notification system connect ho chuka hai!\nNaye order aane par turant customer details & order items yahan milenge.\n\n📍 *Bazar Line, Chhuikhadan*';

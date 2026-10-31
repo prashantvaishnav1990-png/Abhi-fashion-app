@@ -64,13 +64,18 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   const [showPosterSaveModal, setShowPosterSaveModal] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
-  const rawPhone = settings.supportPhone || settings.whatsappNumber || '9826198421';
+  const rawPhone =
+    settings.whatsappNumber && !settings.whatsappNumber.includes('98261')
+      ? settings.whatsappNumber
+      : settings.supportPhone && !settings.supportPhone.includes('98261')
+      ? settings.supportPhone
+      : '8982147180';
   const cleanDigits = rawPhone.replace(/\D/g, '');
   const last10 = cleanDigits.slice(-10);
   const formattedPhoneNumber =
     last10.length === 10
       ? `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`
-      : `+91 ${rawPhone.replace(/^\+?91/, '').trim()}`;
+      : '+91 89821 47180';
 
   // Sync with settings whenever modal opens or settings update
   useEffect(() => {

@@ -257,7 +257,7 @@ export const PaymentGatewayService = {
     customerName: string;
     orderNumber?: string;
   }): string {
-    const cleanUpi = (params.upiId || '9826198421@kistpe').trim();
+    const cleanUpi = (params.upiId || '8982147180@ybl').trim();
     const cleanAmount = params.amount.toFixed(2);
     const note = encodeURIComponent(`KistPe 33% DownPayment Order ${params.orderNumber || ''}`.trim());
     const payeeName = encodeURIComponent('ABHI FASHION');
