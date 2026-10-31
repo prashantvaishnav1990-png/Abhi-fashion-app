@@ -64,6 +64,7 @@ import { PosterQrModal } from './PosterQrModal';
 import { PaymentGatewayService } from '../services/paymentGatewayService';
 import { compressImage, uploadImageToServer } from '../utils/imageCompressor';
 import { apiUrl, getApiBaseUrl } from '../utils/apiConfig';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface AdminErrorBoundaryProps {
   children: React.ReactNode;
@@ -327,6 +328,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Banner Add / Edit Modal State
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+
+  // Phone back button: close lightbox, product modal, banner modal, poster modal, or return to dashboard
+  useBackHandler(Boolean(previewLightboxUrl), () => setPreviewLightboxUrl(null), 30, 'AdminLightbox');
+  useBackHandler(isProductModalOpen, () => { setIsProductModalOpen(false); setEditingProduct(null); }, 22, 'AdminProductModal');
+  useBackHandler(isBannerModalOpen, () => { setIsBannerModalOpen(false); setEditingBanner(null); }, 22, 'AdminBannerModal');
+  useBackHandler(isPosterModalOpen, () => setIsPosterModalOpen(false), 20, 'AdminPosterModal');
+  useBackHandler(isAuthenticated && activeTab !== 'dashboard', () => setActiveTab('dashboard'), 10, 'AdminSubTab');
 
   // Settings local state with complete fallback
   const [localSettings, setLocalSettings] = useState<StoreSettings>(() => ({

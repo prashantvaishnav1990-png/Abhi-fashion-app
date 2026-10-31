@@ -25,6 +25,7 @@ import {
 import { CartItem, CustomerAddress, CustomerProfile, Order, PaymentMethod, StoreSettings } from '../types';
 import { CustomerService } from '../services/customerService';
 import { PaymentGatewayService } from '../services/paymentGatewayService';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -113,6 +114,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [copiedStoreUpi, setCopiedStoreUpi] = useState(false);
   const [hasLaunchedUpiApp, setHasLaunchedUpiApp] = useState(false);
   const [cardVerifying, setCardVerifying] = useState(false);
+
+  // Phone back button: dismiss active payment QR view and return to checkout form
+  useBackHandler(isOpen && showKistPeQr, () => setShowKistPeQr(false), 28, 'CheckoutKistPeQr');
+  useBackHandler(isOpen && !showKistPeQr && onlineUpiMode === 'qr', () => setOnlineUpiMode('apps'), 27, 'CheckoutUpiQr');
 
   const storeUpi = PaymentGatewayService.getStoreUpiId(settings);
 

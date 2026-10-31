@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, X, SlidersHorizontal, ArrowUpDown, Tag } from 'lucide-react';
 import { CategoryId, Product } from '../types';
 import { ProductCard } from './ProductCard';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -26,6 +27,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [priceBracket, setPriceBracket] = useState<'all' | 'under999' | '1000to1999' | 'above2000'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'priceLow' | 'priceHigh' | 'discount'>('newest');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Phone back button: close filter tray first if open
+  useBackHandler(isOpen && showFilters, () => setShowFilters(false), 24, 'SearchFilters');
 
   // Available unique sizes in catalog
   const availableSizes = useMemo(() => {

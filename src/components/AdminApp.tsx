@@ -36,6 +36,7 @@ import { PosterQrModal } from './PosterQrModal';
 import { GlobalErrorBoundary } from './GlobalErrorBoundary';
 import { StoreService, subscribeToNewOrders, subscribeToStore } from '../services/storeStorage';
 import { NotificationService, playOrderAlertSound } from '../services/notificationService';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface AdminAppProps {
   onSwitchToCustomerApp: () => void;
@@ -60,6 +61,16 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [pushStatus, setPushStatus] = useState<{ supported: boolean; isSubscribed: boolean; permission: string } | null>(null);
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
+
+  // Phone back button: close incoming order popup or poster modal
+  useBackHandler(Boolean(incomingOrder), () => setIncomingOrder(null), 25, 'AdminIncomingOrderAlert');
+  useBackHandler(isPosterModalOpen, () => setIsPosterModalOpen(false), 20, 'AdminPosterModal');
+  useBackHandler(
+    !isPosterModalOpen && !incomingOrder && typeof window !== 'undefined' && (window as any).__APP_TARGET_MODE__ !== 'admin',
+    () => onSwitchToCustomerApp(),
+    5,
+    'AdminReturnToStorefront'
+  );
 
   // Load store data
   const refreshData = () => {

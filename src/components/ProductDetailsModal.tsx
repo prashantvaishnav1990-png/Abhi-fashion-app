@@ -18,6 +18,7 @@ import {
 import { Product, StoreSettings } from '../types';
 import { HDImageLightbox } from './HDImageLightbox';
 import { getColorHex, getHdImageUrl, getCategoryFallbackImage } from '../utils/productHelpers';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -46,6 +47,10 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const [addedNotice, setAddedNotice] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
+
+  // Phone back button: close image lightbox first, then size guide
+  useBackHandler(Boolean(product && isLightboxOpen), () => setIsLightboxOpen(false), 30, 'ProductLightbox');
+  useBackHandler(Boolean(product && showSizeGuide), () => setShowSizeGuide(false), 26, 'ProductSizeGuide');
 
   // Sync selected size/color if product changes
   useEffect(() => {

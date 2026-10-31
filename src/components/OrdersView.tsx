@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Smartphone,
   User,
+  ChevronLeft,
 } from 'lucide-react';
 import { CustomerProfile, Order, OrderStatus, StoreSettings } from '../types';
 
@@ -83,6 +84,15 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6">
+      {/* Back to Storefront navigation button */}
+      <button
+        onClick={onContinueShopping}
+        className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs text-amber-400 hover:text-amber-300 font-bold transition cursor-pointer shadow-xs"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span>Back to Storefront (होम स्क्रीन पर वापस जाएं)</span>
+      </button>
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>

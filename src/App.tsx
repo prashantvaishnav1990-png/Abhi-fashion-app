@@ -61,6 +61,7 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { PosterQrModal } from './components/PosterQrModal';
 import { AppDownloadView } from './components/AppDownloadView';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { useBackHandler } from './hooks/useBackHandler';
 
 export default function App() {
   // App Mode State: 'customer' (Client Storefront) vs 'admin' (Store Owner App)
@@ -196,6 +197,102 @@ export default function App() {
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+
+  // --- PHONE HARDWARE BACK BUTTON & BROWSER BACK INTEGRATION ---
+  // Priority 25: Checkout Modal (closes before underlying product/cart modal)
+  useBackHandler(
+    isCheckoutOpen,
+    () => setIsCheckoutOpen(false),
+    25,
+    'CheckoutModal'
+  );
+
+  // Priority 20: Modals & Drawers
+  useBackHandler(
+    Boolean(selectedProduct),
+    () => setSelectedProduct(null),
+    20,
+    'ProductDetailsModal'
+  );
+
+  useBackHandler(
+    isCartOpen,
+    () => setIsCartOpen(false),
+    20,
+    'CartDrawer'
+  );
+
+  useBackHandler(
+    isSearchOpen,
+    () => setIsSearchOpen(false),
+    20,
+    'SearchModal'
+  );
+
+  useBackHandler(
+    isLoginModalOpen,
+    () => setIsLoginModalOpen(false),
+    20,
+    'CustomerLoginModal'
+  );
+
+  useBackHandler(
+    Boolean(confirmedOrder),
+    () => setConfirmedOrder(null),
+    20,
+    'OrderConfirmationModal'
+  );
+
+  useBackHandler(
+    isOfferModalOpen,
+    () => setIsOfferModalOpen(false),
+    20,
+    'OfferBannerModal'
+  );
+
+  // Priority 15: Download View (/download page)
+  useBackHandler(
+    isDownloadView,
+    () => {
+      setIsDownloadView(false);
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {}
+    },
+    15,
+    'AppDownloadView'
+  );
+
+  // Priority 12: Specific category filter reset to 'all' in Categories tab
+  useBackHandler(
+    activeTab === 'categories' && selectedCategory !== 'all',
+    () => {
+      setSelectedCategory('all');
+    },
+    12,
+    'CategoryFilter'
+  );
+
+  // Priority 10: Customer navigation tabs ('categories', 'cart', 'orders') return to 'home'
+  useBackHandler(
+    appMode === 'customer' && activeTab !== 'home',
+    () => {
+      setActiveTab('home');
+      setSelectedCategory('all');
+    },
+    10,
+    'CustomerActiveTab'
+  );
+
+  // Priority 5: Switch back from admin to customer storefront if opened in unified mode
+  useBackHandler(
+    appMode === 'admin' && typeof window !== 'undefined' && (window as any).__APP_TARGET_MODE__ !== 'admin',
+    () => {
+      handleSwitchMode('customer');
+    },
+    5,
+    'AdminModeToCustomer'
+  );
 
   // Load store data and subscribe to changes
   useEffect(() => {
