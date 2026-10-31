@@ -257,23 +257,35 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
               </button>
 
               <button
-                onClick={() => setIsPosterModalOpen(true)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPosterModalOpen(true);
+                }}
                 title="App Download Barcode & Poster Generator"
-                className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
               >
                 <QrCode className="w-3.5 h-3.5 text-slate-950" />
                 <span>Poster Barcode</span>
               </button>
             </div>
 
-            {/* Switch to Customer App Button */}
-            <button
-              onClick={onSwitchToCustomerApp}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-slate-950" />
-              <span>Customer Store ↗</span>
-            </button>
+            {/* Switch to Customer App Button (Guarded with confirmation and hidden in native Admin APK) */}
+            {!(typeof window !== 'undefined' && (window as any).__APP_TARGET_MODE__ === 'admin') && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Admin App se nikal kar Customer Store dekhna chahte hain?')) {
+                    onSwitchToCustomerApp();
+                  }
+                }}
+                title="Customer Storefront View"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Store View</span>
+              </button>
+            )}
           </div>
         </div>
 

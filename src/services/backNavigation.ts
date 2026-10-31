@@ -26,6 +26,8 @@ class BackNavigationService {
     }
   }
 
+  private lastPopTime = 0;
+
   private initCapacitorBackListener() {
     if (this.isCapacitorInitialized) return;
     this.isCapacitorInitialized = true;
@@ -34,16 +36,15 @@ class BackNavigationService {
       .then(({ App: CapApp }) => {
         CapApp.addListener('backButton', ({ canGoBack }) => {
           // Hardware or Gesture back button pressed on Android device
+          const now = Date.now();
+          if (now - this.lastPopTime < 200) {
+            return;
+          }
+          this.lastPopTime = now;
+
           const handled = this.popTop();
-          if (handled) {
-            // A modal, view or drawer was popped.
-            // Also sync browser history
-            this.programmaticPopCount++;
-            try {
-              window.history.back();
-            } catch {}
-          } else {
-            // Stack is empty (user is at root Home)
+          if (!handled) {
+            // Stack is empty (user is at root Home or Admin Dashboard)
             try {
               CapApp.exitApp();
             } catch {}
@@ -132,6 +133,12 @@ class BackNavigationService {
       this.programmaticPopCount--;
       return;
     }
+
+    const now = Date.now();
+    if (now - this.lastPopTime < 200) {
+      return;
+    }
+    this.lastPopTime = now;
 
     // Execute topmost handler
     this.popTop();

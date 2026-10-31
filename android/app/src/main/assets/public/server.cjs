@@ -31,11 +31,16 @@ var import_fs = __toESM(require("fs"), 1);
 var import_vite = require("vite");
 var import_web_push = __toESM(require("web-push"), 1);
 var import_dotenv = __toESM(require("dotenv"), 1);
+var import_qrcode = __toESM(require("qrcode"), 1);
 import_dotenv.default.config();
 var PORT = 3e3;
 var DATA_DIR = import_path.default.join(process.cwd(), "data");
+var UPLOADS_DIR = import_path.default.join(process.cwd(), "public", "uploads");
 if (!import_fs.default.existsSync(DATA_DIR)) {
   import_fs.default.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!import_fs.default.existsSync(UPLOADS_DIR)) {
+  import_fs.default.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 var VAPID_FILE = import_path.default.join(DATA_DIR, "vapid.json");
 var vapidKeys;
@@ -86,8 +91,8 @@ function savePushSubscriptions(subs) {
 }
 var NOTIFY_CONFIG_FILE = import_path.default.join(DATA_DIR, "notification_config.json");
 var DEFAULT_NOTIFY_CONFIG = {
-  ownerPhone: process.env.OWNER_ALERT_PHONE || "9826198421",
-  ownerWhatsApp: "9826198421",
+  ownerPhone: process.env.OWNER_ALERT_PHONE || "8982147180",
+  ownerWhatsApp: "8982147180",
   enablePush: true,
   enableSms: true,
   enableWhatsApp: true,
@@ -352,6 +357,46 @@ async function startServer() {
   const app = (0, import_express.default)();
   app.use(import_express.default.json({ limit: "50mb" }));
   app.use(import_express.default.urlencoded({ extended: true, limit: "50mb" }));
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Range");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+  app.use("/uploads", import_express.default.static(UPLOADS_DIR));
+  app.post("/api/upload", (req, res) => {
+    try {
+      const rawData = req.body?.dataUrl || req.body?.image || req.body?.file;
+      if (!rawData || typeof rawData !== "string") {
+        res.status(400).json({ error: "dataUrl string required" });
+        return;
+      }
+      let dataUrl = rawData;
+      if (!dataUrl.startsWith("data:")) {
+        dataUrl = `data:image/jpeg;base64,${rawData}`;
+      }
+      const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        res.status(400).json({ error: "Invalid data URL format" });
+        return;
+      }
+      const ext = matches[1].includes("png") ? ".png" : matches[1].includes("webp") ? ".webp" : ".jpg";
+      const cleanFileName = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
+      const filePath = import_path.default.join(UPLOADS_DIR, cleanFileName);
+      const buffer = Buffer.from(matches[2], "base64");
+      import_fs.default.writeFileSync(filePath, buffer);
+      console.log(`[UPLOAD] Image saved successfully to ${filePath} (${(buffer.length / 1024).toFixed(1)} KB)`);
+      res.json({ success: true, url: `/uploads/${cleanFileName}` });
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      res.status(500).json({ error: err.message || "Upload failed" });
+    }
+  });
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
@@ -362,6 +407,29 @@ async function startServer() {
         whatsapp: true
       }
     });
+  });
+  app.get("/api/poster-qr/download", async (req, res) => {
+    try {
+      const targetUrl = req.query.url || "https://drive.google.com/uc?export=download&id=1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz";
+      const buffer = await import_qrcode.default.toBuffer(targetUrl, {
+        width: 1024,
+        margin: 2,
+        color: {
+          dark: "#0B132B",
+          light: "#FFFFFF"
+        },
+        errorCorrectionLevel: "H"
+      });
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="AbhiFashion-App-Download-QR.png"'
+      );
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.send(buffer);
+    } catch (err) {
+      res.status(500).send("Failed to generate QR");
+    }
   });
   app.get("/api/push/vapid-public-key", (req, res) => {
     res.json({ publicKey: vapidKeys.publicKey });
@@ -448,7 +516,7 @@ async function startServer() {
   app.post("/api/notify/test-sms", async (req, res) => {
     const { phone } = req.body || {};
     const cfg = getNotificationConfig();
-    const targetPhone = phone || cfg.ownerPhone || "9826198421";
+    const targetPhone = phone || cfg.ownerPhone || "8982147180";
     const testMessage = "ABHI FASHION: Test SMS successful! Aapki dukaan par naye orders aane par yahan alert aayega. Bazar Line, Chhuikhadan.";
     const result = await sendSmsNotification(targetPhone, testMessage, cfg);
     res.json(result);
@@ -456,7 +524,7 @@ async function startServer() {
   app.post("/api/notify/test-whatsapp", async (req, res) => {
     const { phone } = req.body || {};
     const cfg = getNotificationConfig();
-    const targetPhone = phone || cfg.ownerWhatsApp || "9826198421";
+    const targetPhone = phone || cfg.ownerWhatsApp || "8982147180";
     const testMessage = "\u{1F6CD}\uFE0F *ABHI FASHION - WhatsApp Alert Test*\n\nAapka WhatsApp notification system connect ho chuka hai!\nNaye order aane par turant customer details & order items yahan milenge.\n\n\u{1F4CD} *Bazar Line, Chhuikhadan*";
     const result = await sendWhatsAppNotification(targetPhone, testMessage, cfg);
     res.json(result);
@@ -629,6 +697,15 @@ data: ${JSON.stringify({
         const prod = products.find((p) => p.id === it.productId);
         if (prod) {
           prod.stock = Math.max(0, (prod.stock || 0) - (it.quantity || 1));
+          if (it.selectedSize) {
+            if (!prod.sizeStock) prod.sizeStock = {};
+            const currentSizeQty = prod.sizeStock[it.selectedSize] !== void 0 ? prod.sizeStock[it.selectedSize] : Math.max(0, Math.floor(prod.stock / (prod.sizes?.length || 1)));
+            prod.sizeStock[it.selectedSize] = Math.max(0, currentSizeQty - (it.quantity || 1));
+            const allSizeStocks = Object.values(prod.sizeStock);
+            if (allSizeStocks.length >= (prod.sizes?.length || 1)) {
+              prod.stock = allSizeStocks.reduce((sum, q) => sum + (Number(q) || 0), 0);
+            }
+          }
         }
       });
       writeJsonFile(PRODUCTS_FILE, products);
@@ -726,6 +803,23 @@ http://localhost:3000/admin`;
     } else {
       res.status(400).json({ error: "Array of products required" });
     }
+  });
+  app.post("/api/products/upsert", (req, res) => {
+    const { product } = req.body;
+    if (!product || !product.id) {
+      res.status(400).json({ error: "Valid product object with id required" });
+      return;
+    }
+    const products = readJsonFile(PRODUCTS_FILE, []);
+    const idx = products.findIndex((p) => p.id === product.id);
+    if (idx >= 0) {
+      products[idx] = product;
+    } else {
+      products.unshift(product);
+    }
+    writeJsonFile(PRODUCTS_FILE, products);
+    broadcastRealtimeUpdate("products", products);
+    res.json({ success: true, product, total: products.length });
   });
   app.delete("/api/products/:id", (req, res) => {
     const { id } = req.params;
@@ -948,11 +1042,34 @@ http://localhost:3000/admin`;
   });
   if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({
+      configFile: import_path.default.resolve(process.cwd(), "vite.config.ts"),
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === "true" ? false : void 0
+        hmr: false
       },
       appType: "spa"
+    });
+    app.use("/@vite/client", (req, res, next) => {
+      const originalWrite = res.write;
+      const originalEnd = res.end;
+      const chunks = [];
+      res.write = function(chunk) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        return true;
+      };
+      res.end = function(chunk, ...args) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        let body = Buffer.concat(chunks).toString("utf8");
+        body = body.replace(
+          /new WebSocket\([^)]*\)/g,
+          '({ readyState: 1, OPEN: 1, send() {}, close() {}, addEventListener(e, fn) { if (e === "open") setTimeout(() => { try { fn({ type: "open" }); } catch {} }, 0); }, removeEventListener() {} })'
+        );
+        res.write = originalWrite;
+        res.end = originalEnd;
+        res.setHeader("Content-Length", Buffer.byteLength(body));
+        return res.end(body, ...args);
+      };
+      next();
     });
     app.use(vite.middlewares);
   } else {

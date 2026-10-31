@@ -113,14 +113,14 @@ export default function App() {
       .then(({ App: CapApp }) => {
         CapApp.getInfo()
           .then((info) => {
-            if (info?.id === 'com.abhifashion.admin') {
+            const id = (info?.id || '').toLowerCase();
+            if (id.includes('admin')) {
               setAppMode('admin');
-            } else if (info?.id === 'com.abhifashion.store') {
-              const params = new URLSearchParams(window.location.search);
-              if (!params.get('app') && !window.location.pathname.startsWith('/admin')) {
-                setAppMode('customer');
-              }
+              try {
+                localStorage.setItem('abhi_fashion_app_mode', 'admin');
+              } catch {}
             }
+            // NEVER blindly overwrite 'admin' mode to 'customer' if the user is in Admin!
           })
           .catch(() => {});
       })
@@ -147,14 +147,8 @@ export default function App() {
       } else {
         setIsDownloadView(false);
       }
-
-      // Only switch app mode if the URL explicitly requests it.
-      // Never unexpectedly force Admin mode back to Customer mode!
-      if (path.startsWith('/admin') || params.get('app') === 'admin' || params.get('tab') === 'admin') {
-        setAppMode('admin');
-      } else if (params.get('app') === 'customer') {
-        setAppMode('customer');
-      }
+      // NOTE: NEVER switch appMode in handlePopState!
+      // This prevents the Admin App from suddenly turning into the Customer App when pressing back or closing modals.
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
