@@ -156,9 +156,9 @@ export const INITIAL_PRODUCTS: Product[] = [
     mrp: 2799,
     sellingPrice: 1499,
     discountPercent: 46,
-    sizes: ['30', '32', '34', '36'],
+    sizes: ['28', '30', '32', '34', '36', '38', '40', '42'],
     colors: ['Medium Indigo', 'Faded Stone Wash', 'Charcoal Black'],
-    stock: 9,
+    stock: 24,
     description: 'Authentic 12.5oz ring-spun denim with 2% elastane power stretch. Hand-whiskered and stone-washed indigo finish with reinforced pocket stitching.',
     images: [
       'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&auto=format&fit=crop&q=85',
@@ -257,8 +257,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     mrp: 2199,
     sellingPrice: 1099,
     discountPercent: 50,
-    sizes: ['38', '40', '42', '44'],
-    stock: 3, // low stock test
+    sizes: ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
+    stock: 21,
     description: 'Lightweight pure linen casual shirt with retro camp collar and straight vented hem. Ideal for summer holidays and breezy casual hangouts.',
     images: [
       'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80',

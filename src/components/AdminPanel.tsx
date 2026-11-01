@@ -2850,18 +2850,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 <div>
                   <label className="block text-slate-400 text-[11px] mb-1">
-                    Sizes daalein (comma, dash ya space se likhein: jaise <span className="text-amber-300 font-mono">28, 30, 32</span> ya <span className="text-amber-300 font-mono">28-30-32</span> ya <span className="text-amber-300 font-mono">S, M, L, XL</span>):
+                    Sizes daalein (comma, dash ya space se likhein: jaise <span className="text-amber-300 font-mono">28, 30, 32, 34, 36, 38, 40, 42</span> ya <span className="text-amber-300 font-mono">S, M, L, XL, XXL, 3XL, 4XL</span>):
                   </label>
                   <input
                     type="text"
                     value={Array.isArray(editingProduct.sizes) ? editingProduct.sizes.join(', ') : ''}
                     onChange={(e) => {
                       const raw = e.target.value;
-                      // Support comma, dash, slash, or whitespace separation
-                      const sizesArr = raw
-                        .split(/[,/\s-]+/)
-                        .map((s) => s.trim())
-                        .filter(Boolean);
+                      let sizesArr: string[] = [];
+                      if (raw.includes(',') || raw.includes(';')) {
+                        sizesArr = raw.split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+                      } else if (raw.includes('/')) {
+                        sizesArr = raw.split(/\/+/).map((s) => s.trim()).filter(Boolean);
+                      } else if (raw.includes('-') && /\d+-\d+/.test(raw)) {
+                        sizesArr = raw.split(/-+/).map((s) => s.trim()).filter(Boolean);
+                      } else {
+                        sizesArr = raw.split(/\s+/).map((s) => s.trim()).filter(Boolean);
+                      }
 
                       // Preserve existing size stocks or initialize with default
                       const updatedSizeStock: Record<string, number> = {};
@@ -2882,65 +2887,152 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         stock: totalSum > 0 ? totalSum : editingProduct.stock,
                       });
                     }}
-                    placeholder="e.g. 28, 30, 32 ya S, M, L, XL"
+                    placeholder="e.g. 28, 30, 32, 34, 36, 38, 40, 42 ya S, M, L, XL, XXL, 3XL, 4XL"
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-hidden focus:border-amber-400"
                   />
                 </div>
 
-                {/* Quick Presets */}
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="text-slate-400">Quick templates:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tSizes = ['28', '30', '32', '34', '36'];
-                      const sStock: Record<string, number> = {};
-                      tSizes.forEach((sz) => (sStock[sz] = 5));
-                      setEditingProduct({
-                        ...editingProduct,
-                        sizes: tSizes,
-                        sizeStock: sStock,
-                        stock: 25,
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
-                  >
-                    Jeans (28, 30, 32, 34, 36)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tSizes = ['S', 'M', 'L', 'XL', 'XXL'];
-                      const sStock: Record<string, number> = {};
-                      tSizes.forEach((sz) => (sStock[sz] = 5));
-                      setEditingProduct({
-                        ...editingProduct,
-                        sizes: tSizes,
-                        sizeStock: sStock,
-                        stock: 25,
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
-                  >
-                    Shirts (S, M, L, XL, XXL)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tSizes = ['7 UK', '8 UK', '9 UK', '10 UK'];
-                      const sStock: Record<string, number> = {};
-                      tSizes.forEach((sz) => (sStock[sz] = 4));
-                      setEditingProduct({
-                        ...editingProduct,
-                        sizes: tSizes,
-                        sizeStock: sStock,
-                        stock: 16,
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
-                  >
-                    Shoes (7, 8, 9, 10 UK)
-                  </button>
+                {/* Quick Presets / Templates */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span className="text-slate-400 font-semibold">1-Click Full Templates:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tSizes = ['28', '30', '32', '34', '36', '38', '40', '42'];
+                        const sStock: Record<string, number> = {};
+                        tSizes.forEach((sz) => (sStock[sz] = 5));
+                        setEditingProduct({
+                          ...editingProduct,
+                          sizes: tSizes,
+                          sizeStock: sStock,
+                          stock: 40,
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-mono font-bold border border-amber-500/30 cursor-pointer shadow-xs"
+                    >
+                      👖 Jeans (28, 30, 32, 34, 36, 38, 40, 42)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tSizes = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
+                        const sStock: Record<string, number> = {};
+                        tSizes.forEach((sz) => (sStock[sz] = 5));
+                        setEditingProduct({
+                          ...editingProduct,
+                          sizes: tSizes,
+                          sizeStock: sStock,
+                          stock: 35,
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-mono font-bold border border-amber-500/30 cursor-pointer shadow-xs"
+                    >
+                      👔 Shirts (S, M, L, XL, XXL, 3XL, 4XL)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tSizes = ['6 UK', '7 UK', '8 UK', '9 UK', '10 UK'];
+                        const sStock: Record<string, number> = {};
+                        tSizes.forEach((sz) => (sStock[sz] = 4));
+                        setEditingProduct({
+                          ...editingProduct,
+                          sizes: tSizes,
+                          sizeStock: sStock,
+                          stock: 20,
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono border border-slate-700 cursor-pointer"
+                    >
+                      👟 Shoes (6, 7, 8, 9, 10 UK)
+                    </button>
+                  </div>
+
+                  {/* Individual Size Quick Chips */}
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-[10px]">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-amber-400 font-bold min-w-[70px]">Jeans Sizes:</span>
+                      {['28', '30', '32', '34', '36', '38', '40', '42'].map((sz) => {
+                        const isAdded = (editingProduct.sizes || []).includes(sz);
+                        return (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => {
+                              const cur = Array.isArray(editingProduct.sizes) ? [...editingProduct.sizes] : [];
+                              const updatedStock: Record<string, number> = { ...(editingProduct.sizeStock || {}) };
+                              let nextSizes: string[];
+                              if (isAdded) {
+                                nextSizes = cur.filter((s) => s !== sz);
+                                delete updatedStock[sz];
+                              } else {
+                                nextSizes = [...cur, sz];
+                                if (!updatedStock[sz] || updatedStock[sz] <= 0) {
+                                  updatedStock[sz] = 5;
+                                }
+                              }
+                              const sum = Object.values(updatedStock).reduce((a, b) => a + Number(b || 0), 0);
+                              setEditingProduct({
+                                ...editingProduct,
+                                sizes: nextSizes,
+                                sizeStock: updatedStock,
+                                stock: sum > 0 ? sum : nextSizes.length * 5,
+                              });
+                            }}
+                            className={`px-2 py-0.5 rounded font-mono font-bold transition cursor-pointer border ${
+                              isAdded
+                                ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-xs'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            {isAdded ? `✓ ${sz}` : `+${sz}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-amber-400 font-bold min-w-[70px]">Shirt Sizes:</span>
+                      {['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'].map((sz) => {
+                        const isAdded = (editingProduct.sizes || []).includes(sz);
+                        return (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => {
+                              const cur = Array.isArray(editingProduct.sizes) ? [...editingProduct.sizes] : [];
+                              const updatedStock: Record<string, number> = { ...(editingProduct.sizeStock || {}) };
+                              let nextSizes: string[];
+                              if (isAdded) {
+                                nextSizes = cur.filter((s) => s !== sz);
+                                delete updatedStock[sz];
+                              } else {
+                                nextSizes = [...cur, sz];
+                                if (!updatedStock[sz] || updatedStock[sz] <= 0) {
+                                  updatedStock[sz] = 5;
+                                }
+                              }
+                              const sum = Object.values(updatedStock).reduce((a, b) => a + Number(b || 0), 0);
+                              setEditingProduct({
+                                ...editingProduct,
+                                sizes: nextSizes,
+                                sizeStock: updatedStock,
+                                stock: sum > 0 ? sum : nextSizes.length * 5,
+                              });
+                            }}
+                            className={`px-2 py-0.5 rounded font-mono font-bold transition cursor-pointer border ${
+                              isAdded
+                                ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-xs'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            {isAdded ? `✓ ${sz}` : `+${sz}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Individual Size Quantity Cards */}
