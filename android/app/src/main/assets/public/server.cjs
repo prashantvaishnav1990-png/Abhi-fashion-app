@@ -410,7 +410,7 @@ async function startServer() {
   });
   app.get("/api/poster-qr/download", async (req, res) => {
     try {
-      const targetUrl = req.query.url || "https://drive.google.com/uc?export=download&id=1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz";
+      const targetUrl = req.query.url || "https://drive.google.com/uc?export=download&id=1huxrdw5rDTiZEDylfZnZuYyzm13AnqCf";
       const buffer = await import_qrcode.default.toBuffer(targetUrl, {
         width: 1024,
         margin: 2,

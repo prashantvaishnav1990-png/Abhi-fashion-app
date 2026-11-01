@@ -25,8 +25,19 @@ import { StoreSettings } from '../types';
 import { StoreService } from '../services/storeStorage';
 import { useBackHandler } from '../hooks/useBackHandler';
 
-const VERIFIED_GOOGLE_DRIVE_URL =
-  'https://drive.google.com/uc?export=download&id=1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz';
+export const PERMANENT_GITHUB_APK_URL =
+  'https://github.com/prashantvaishnav1990-png/Abhi-fashion-app/releases/latest/download/AbhiFashion-Customer.apk';
+
+export const VERIFIED_GOOGLE_DRIVE_URL =
+  'https://drive.google.com/uc?export=download&id=1huxrdw5rDTiZEDylfZnZuYyzm13AnqCf';
+
+const isObsoleteApkUrl = (url?: string) =>
+  !url ||
+  url.includes('localhost') ||
+  url.includes('1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz') ||
+  url.includes('1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-') ||
+  url.includes('1pwNj1FeWqcAZekNE1bj8P9ipULcNf8Qo') ||
+  url.includes('1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB');
 
 interface PosterQrModalProps {
   isOpen: boolean;
@@ -43,17 +54,24 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
 }) => {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const defaultDownloadUrl =
-    currentOrigin && !currentOrigin.includes('localhost')
+    currentOrigin && !currentOrigin.includes('localhost') && !currentOrigin.includes('ais-')
       ? `${currentOrigin}/download`
-      : VERIFIED_GOOGLE_DRIVE_URL;
+      : PERMANENT_GITHUB_APK_URL;
+  const safeDefaultDownloadUrl = isObsoleteApkUrl(defaultDownloadUrl)
+    ? PERMANENT_GITHUB_APK_URL
+    : defaultDownloadUrl;
 
   const initialUrl =
-    settings.appPublicUrl && !settings.appPublicUrl.includes('localhost')
+    settings.appPublicUrl && !isObsoleteApkUrl(settings.appPublicUrl)
       ? settings.appPublicUrl
       : VERIFIED_GOOGLE_DRIVE_URL;
 
-  const [customUrl, setCustomUrl] = useState<string>(initialUrl);
-  const [activeUrlMode, setActiveUrlMode] = useState<'custom' | 'default'>('custom');
+  const [customUrl, setCustomUrl] = useState<string>(
+    settings.appPublicUrl && !isObsoleteApkUrl(settings.appPublicUrl)
+      ? settings.appPublicUrl
+      : VERIFIED_GOOGLE_DRIVE_URL
+  );
+  const [activeUrlMode, setActiveUrlMode] = useState<'official' | 'custom'>('official');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -85,21 +103,42 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   // Sync with settings whenever modal opens or settings update
   useEffect(() => {
     if (isOpen) {
-      if (settings.appPublicUrl && !settings.appPublicUrl.includes('localhost')) {
+      if (
+        settings.appPublicUrl &&
+        !isObsoleteApkUrl(settings.appPublicUrl) &&
+        settings.appPublicUrl !== VERIFIED_GOOGLE_DRIVE_URL
+      ) {
         setCustomUrl(settings.appPublicUrl);
+        // User had previously saved a real custom domain/shortlink
+        setActiveUrlMode('custom');
       } else {
         setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
+        setActiveUrlMode('official');
+        // Automatically save verified new URL to settings
+        if (!settings.appPublicUrl || isObsoleteApkUrl(settings.appPublicUrl)) {
+          const updated: StoreSettings = {
+            ...settings,
+            appPublicUrl: VERIFIED_GOOGLE_DRIVE_URL,
+          };
+          StoreService.saveSettings(updated);
+          if (onSaveSettings) {
+            onSaveSettings(updated);
+          }
+        }
       }
-      setActiveUrlMode('custom');
     }
   }, [isOpen, settings.appPublicUrl]);
 
   // Determine the active link to encode inside the Barcode
-  let activeDownloadUrl =
-    activeUrlMode === 'custom' && customUrl.trim() ? customUrl.trim() : defaultDownloadUrl;
-
-  // Never allow localhost inside the QR code for shop posters!
-  if (activeDownloadUrl.includes('localhost') || !activeDownloadUrl.startsWith('http')) {
+  let activeDownloadUrl = VERIFIED_GOOGLE_DRIVE_URL;
+  if (
+    activeUrlMode === 'custom' &&
+    customUrl.trim() &&
+    !isObsoleteApkUrl(customUrl.trim()) &&
+    customUrl.trim().startsWith('http')
+  ) {
+    activeDownloadUrl = customUrl.trim();
+  } else {
     activeDownloadUrl = VERIFIED_GOOGLE_DRIVE_URL;
   }
 
@@ -326,6 +365,40 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
     });
   };
 
+// Helper to convert base64 DataURL to proper File/Blob for Android & Browser saving
+function dataURLtoFile(dataurl: string, filename: string): File {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+function triggerBlobDownload(dataUrl: string, filename: string) {
+  try {
+    const file = dataURLtoFile(dataUrl, filename);
+    const blobUrl = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+  } catch {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
   // Full Poster Download Handler (Android proof + Gallery Save Sheet)
   const handleDownloadPoster = async () => {
     if (!qrDataUrl) return;
@@ -336,15 +409,26 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
       setGeneratedPosterUrl(posterData);
       setShowPosterSaveModal(true);
 
-      // Trigger standard anchor download
-      const a = document.createElement('a');
-      a.href = posterData;
-      a.download = 'ABHI-FASHION-Store-Poster.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // 1. Direct Blob Download (Works across browsers and Android downloads)
+      triggerBlobDownload(posterData, 'ABHI-FASHION-Store-Poster.png');
 
-      setShareSuccess('Poster taiyar hai! Gallery me save ya WhatsApp karein.');
+      // 2. Native Share / Gallery Sheet if supported
+      try {
+        const file = dataURLtoFile(posterData, 'ABHI-FASHION-Store-Poster.png');
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'ABHI FASHION Poster',
+            text: `🛍️ ${settings.storeName} Dukaan Poster & Barcode`,
+            files: [file],
+          });
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('Native share error:', err);
+        }
+      }
+
+      setShareSuccess('Poster taiyar hai! Gallery me save karein.');
       setTimeout(() => setShareSuccess(null), 4000);
     } catch (e) {
       console.error(e);
@@ -357,13 +441,33 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   // Barcode-only Download Handler
   const handleDownloadOnlyQr = () => {
     if (!qrDataUrl) return;
-    const a = document.createElement('a');
-    a.href = qrDataUrl;
-    a.download = 'ABHI-FASHION-App-QR.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setShareSuccess('Barcode PNG downloaded!');
+    triggerBlobDownload(qrDataUrl, 'ABHI-FASHION-App-QR.png');
+    setShareSuccess('Barcode PNG download shuru ho gaya!');
+    setTimeout(() => setShareSuccess(null), 3000);
+  };
+
+  // Direct File Share / Gallery Save via Web Share API
+  const handleSharePosterFile = async () => {
+    if (!generatedPosterUrl) return;
+    try {
+      const file = dataURLtoFile(generatedPosterUrl, 'ABHI-FASHION-Store-Poster.png');
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'ABHI FASHION Poster',
+          text: `🛍️ ${settings.storeName} - Dukaan Poster Barcode`,
+          files: [file],
+        });
+        setShareSuccess('Gallery / WhatsApp share khul gaya!');
+        setTimeout(() => setShareSuccess(null), 3000);
+        return;
+      }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      console.warn('Share error:', e);
+    }
+    // Fallback: Trigger Blob Download
+    triggerBlobDownload(generatedPosterUrl, 'ABHI-FASHION-Store-Poster.png');
+    setShareSuccess('Poster download ho gaya!');
     setTimeout(() => setShareSuccess(null), 3000);
   };
 
@@ -469,39 +573,125 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => setActiveUrlMode('official')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeUrlMode === 'official'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>⚡ Customer App (APK) Link</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveUrlMode('custom')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeUrlMode === 'custom'
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
                 <Link2 className="w-3.5 h-3.5" />
-                <span>Custom Branded / Short Link</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveUrlMode('default')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activeUrlMode === 'default'
-                    ? 'bg-amber-400 text-slate-950 shadow-sm'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Current Web Store Link</span>
+                <span>🌐 Custom Domain / Short Link</span>
               </button>
             </div>
 
-            {/* Custom URL Input Field */}
-            {activeUrlMode === 'custom' ? (
+            {/* Official APK Link Tab Content */}
+            {activeUrlMode === 'official' ? (
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-emerald-500/30 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-xs font-black text-emerald-400 uppercase tracking-wide">
+                      {activeDownloadUrl === PERMANENT_GITHUB_APK_URL
+                        ? '⚡ Permanent GitHub Auto-Update Link (Active)'
+                        : '📁 Google Drive Direct Link (Active)'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/30">
+                    {activeDownloadUrl === PERMANENT_GITHUB_APK_URL
+                      ? 'No Poster Re-print Needed Ever!'
+                      : 'Verified Customer APK'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 font-mono text-amber-300 text-xs break-all select-all">
+                  {activeDownloadUrl}
+                </div>
+
+                {activeDownloadUrl === PERMANENT_GITHUB_APK_URL ? (
+                  <p className="text-[11px] text-emerald-300 leading-relaxed bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/30">
+                    🎉 <strong>Permanent Solution Set:</strong> Ab aap GitHub par jitni baar bhi naya push karenge, dukaan ka printed poster kabhi nahi badalna padega! Scanner hamesha sabse naya APK hi download karwayega.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    ✅ <strong>Google Drive APK Link Active:</strong> Customer barcode scan karke direct Google Drive se ye APK download kar sakte hain.
+                  </p>
+                )}
+
+                {/* 1-Tap Quick Switchers */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 font-medium">Link Switch Karein:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomUrl(PERMANENT_GITHUB_APK_URL);
+                      const updated: StoreSettings = {
+                        ...settings,
+                        appPublicUrl: PERMANENT_GITHUB_APK_URL,
+                      };
+                      StoreService.saveSettings(updated);
+                      if (onSaveSettings) onSaveSettings(updated);
+                      setIsSaved(true);
+                      setTimeout(() => setIsSaved(false), 2000);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border ${
+                      activeDownloadUrl === PERMANENT_GITHUB_APK_URL
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
+                    }`}
+                  >
+                    <span>⚡ GitHub Permanent Link</span>
+                    {activeDownloadUrl === PERMANENT_GITHUB_APK_URL && <span>✓</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
+                      const updated: StoreSettings = {
+                        ...settings,
+                        appPublicUrl: VERIFIED_GOOGLE_DRIVE_URL,
+                      };
+                      StoreService.saveSettings(updated);
+                      if (onSaveSettings) onSaveSettings(updated);
+                      setIsSaved(true);
+                      setTimeout(() => setIsSaved(false), 2000);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border ${
+                      activeDownloadUrl === VERIFIED_GOOGLE_DRIVE_URL
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
+                    }`}
+                  >
+                    <span>📁 Google Drive Link</span>
+                    {activeDownloadUrl === VERIFIED_GOOGLE_DRIVE_URL && <span>✓</span>}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Custom URL Input Field */
               <div className="space-y-2 pt-1">
+                <p className="text-[11px] text-slate-300">
+                  Agar aap apna custom short link (jaise bit.ly) ya apni website ka domain lagana chahte hain toh yahan enter karein:
+                </p>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={customUrl}
                     onChange={(e) => setCustomUrl(e.target.value)}
-                    placeholder="e.g. https://bit.ly/abhifashion-app ya https://abhifashion.in"
+                    placeholder="https://bit.ly/abhifashion ya https://abhifashion.in"
                     className="flex-1 bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-slate-500 focus:outline-hidden"
                   />
                   <button
@@ -514,7 +704,25 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="text-slate-400">Quick suggestions:</span>
+                  <span className="text-slate-400">Quick options:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
+                      setActiveUrlMode('official');
+                      const updated: StoreSettings = {
+                        ...settings,
+                        appPublicUrl: VERIFIED_GOOGLE_DRIVE_URL,
+                      };
+                      StoreService.saveSettings(updated);
+                      if (onSaveSettings) onSaveSettings(updated);
+                      setIsSaved(true);
+                      setTimeout(() => setIsSaved(false), 2000);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40 cursor-pointer"
+                  >
+                    ⚡ Use Official APK Link
+                  </button>
                   <button
                     type="button"
                     onClick={() => setCustomUrl('https://bit.ly/abhifashion-store')}
@@ -531,10 +739,6 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                   </button>
                 </div>
               </div>
-            ) : (
-              <p className="text-[11px] text-slate-400">
-                Current App URL active: <span className="font-mono text-amber-300">{defaultDownloadUrl}</span>
-              </p>
             )}
           </div>
 
@@ -556,7 +760,14 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
           {/* Action Row */}
           <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900 border border-slate-800">
             <div className="text-xs">
-              <span className="text-slate-400 block text-[10px]">QR Code Me Encoded Link:</span>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-slate-400 block text-[10px]">QR Code Me Encoded Link:</span>
+                {activeDownloadUrl === VERIFIED_GOOGLE_DRIVE_URL && (
+                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
+                    ✓ New Official APK Active
+                  </span>
+                )}
+              </div>
               <span className="font-mono font-bold text-amber-300 text-xs break-all">
                 {activeDownloadUrl}
               </span>
@@ -815,25 +1026,42 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                 </button>
               </div>
 
-              {/* Poster Preview */}
-              <div className="bg-white rounded-2xl p-2 border-2 border-amber-400 max-h-[48vh] overflow-hidden flex items-center justify-center shadow-inner">
+              {/* Poster Preview with Android Long-Press Support */}
+              <div className="bg-white rounded-2xl p-2 border-2 border-amber-400 max-h-[48vh] overflow-hidden flex flex-col items-center justify-center shadow-inner relative">
                 <img
                   src={generatedPosterUrl}
                   alt="Generated ABHI FASHION Poster"
-                  className="w-full h-auto max-h-[46vh] object-contain rounded-xl select-none"
+                  className="w-full h-auto max-h-[44vh] object-contain rounded-xl cursor-pointer pointer-events-auto select-auto"
                 />
+              </div>
+
+              {/* Android Direct Gallery Tip */}
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] leading-relaxed flex items-start gap-2">
+                <span className="text-base leading-none">💡</span>
+                <span>
+                  <strong>Gallery me Direct Save karne ke liye:</strong> Upar poster par <strong>1 second ungli daba kar rakhein (Long Press)</strong> aur <strong>"Download image"</strong> par tap karein, ya neeche <strong>"Gallery me Save / Share"</strong> button dabayein!
+                </span>
               </div>
 
               {/* Action Buttons */}
               <div className="space-y-2">
-                <a
-                  href={generatedPosterUrl}
-                  download="ABHI-FASHION-Store-Poster.png"
-                  className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-98 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition"
+                <button
+                  type="button"
+                  onClick={handleSharePosterFile}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-98 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-slate-950" />
-                  <span>Save to Phone Gallery / Files</span>
-                </a>
+                  <span>📱 Gallery me Save / Share Karein</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => triggerBlobDownload(generatedPosterUrl, 'ABHI-FASHION-Store-Poster.png')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 shadow-md transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
+                  <span>📥 Direct PNG Download File</span>
+                </button>
 
                 <button
                   type="button"
@@ -841,13 +1069,13 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Share on WhatsApp (Flex Print Shop)</span>
+                  <span>💬 WhatsApp par Bhejein (Flex Shop)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowPosterSaveModal(false)}
-                  className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                  className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs transition cursor-pointer border border-slate-800"
                 >
                   Close
                 </button>

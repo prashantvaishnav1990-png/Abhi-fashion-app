@@ -795,7 +795,8 @@ export const StoreService = {
         parsed.appPublicUrl.includes('ais-dev') ||
         parsed.appPublicUrl.includes('1jC_dYK62zmY3fUxvQOzn-y4Jnrk3G7c-') ||
         parsed.appPublicUrl.includes('1pwNj1FeWqcAZekNE1bj8P9ipULcNf8Qo') ||
-        parsed.appPublicUrl.includes('1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB')
+        parsed.appPublicUrl.includes('1pWo6JeOaENVPFot67lR8dt2wTEr3O0BB') ||
+        parsed.appPublicUrl.includes('1t2FkhgLeFDTbK_WPmgA1aaii7vzXpgtz')
       ) {
         parsed.appPublicUrl = INITIAL_SETTINGS.appPublicUrl;
       }
@@ -814,7 +815,7 @@ export const StoreService = {
       if (!parsed.supportPhone || parsed.supportPhone.includes('98261')) {
         parsed.supportPhone = '+91 89821 47180';
       }
-      return {
+      const sanitized: StoreSettings = {
         ...INITIAL_SETTINGS,
         ...parsed,
         whatsappNumber: (!parsed.whatsappNumber || parsed.whatsappNumber.includes('98261')) ? '8982147180' : parsed.whatsappNumber,
@@ -826,6 +827,12 @@ export const StoreService = {
         emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33,
         appPublicUrl: parsed.appPublicUrl || INITIAL_SETTINGS.appPublicUrl,
       };
+      if (sanitized.appPublicUrl !== parsed.appPublicUrl) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(sanitized));
+        } catch {}
+      }
+      return sanitized;
     } catch {
       return INITIAL_SETTINGS;
     }
