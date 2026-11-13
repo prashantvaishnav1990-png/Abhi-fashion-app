@@ -1163,6 +1163,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span className="text-xs font-black text-white block">
                           ₹{o.totalAmount}
                         </span>
+                        {(o.loyaltyDiscountApplied || (o.discount && o.discount > 0)) && (
+                          <span className="text-[10px] text-emerald-400 font-bold block">
+                            👑 VIP {o.loyaltyDiscountPercent || 5}% OFF (-₹{o.discount})
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-400 uppercase">
                           {o.paymentMethod} ({o.paymentStatus})
                         </span>
@@ -1274,12 +1279,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   {/* Items summary */}
                   <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-2 text-[11px]">
                     {(o.items || []).map((it: any, idx: number) => (
-                      <span
+                      <div
                         key={idx}
-                        className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700/60"
+                        className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-900 text-slate-300 border border-slate-700/60"
                       >
-                        {it.productName} (Size: {it.selectedSize}) x {it.quantity}
-                      </span>
+                        {it.image && (
+                          <img
+                            src={it.image}
+                            alt=""
+                            className="w-8 h-10 rounded-lg object-cover bg-slate-800 shrink-0"
+                          />
+                        )}
+                        <div>
+                          <div className="font-bold text-white flex items-center gap-1.5">
+                            {it.productCode && (
+                              <span className="font-mono text-amber-300 text-[10px] bg-amber-400/10 px-1 rounded border border-amber-400/30">
+                                #{it.productCode}
+                              </span>
+                            )}
+                            <span className="truncate max-w-[200px]">{it.productName}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span>Size: <strong className="text-slate-200">{it.selectedSize}</strong></span>
+                            {it.selectedColor && (
+                              <span className="text-amber-300">• Colour: <strong className="text-white">{it.selectedColor}</strong></span>
+                            )}
+                            <span>• Qty: {it.quantity}</span>
+                            <span className="text-amber-300 font-bold">• ₹{it.totalPrice}</span>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1493,6 +1522,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden"
                 />
+              </div>
+            </div>
+
+            {/* VIP Loyalty Milestone Reward Settings */}
+            <div className="pt-3 border-t border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-300 text-xs block">
+                  👑 VIP Loyalty Reward (Extra Discount on Next Order)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={localSettings.isLoyaltyDiscountEnabled !== false}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      isLoyaltyDiscountEnabled: e.target.checked,
+                    })
+                  }
+                  className="w-4 h-4 text-amber-400"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Total Orders Milestone Target (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={localSettings.loyaltyThreshold ?? 10000}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        loyaltyThreshold: Number(e.target.value) || 10000,
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Extra Discount on Next Purchase (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={localSettings.loyaltyDiscountPercent ?? 5}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        loyaltyDiscountPercent: Number(e.target.value) || 5,
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-hidden"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2567,6 +2650,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }
                   placeholder="e.g. Royal Oxford Pure Cotton Shirt"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-semibold">
+                    Unique Item / Barcode Code (SKU)
+                  </label>
+                  <span className="text-[10px] text-amber-400 font-bold">
+                    WhatsApp Order me yahi code aayega
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={editingProduct.productCode || ''}
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, productCode: e.target.value.toUpperCase().trim() })
+                  }
+                  placeholder="e.g. AF-JNS-01, AF-SHT-02 (Khali chhodne par auto-generate hoga)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-amber-300 font-mono uppercase text-xs"
                 />
               </div>
 

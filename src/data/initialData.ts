@@ -88,6 +88,7 @@ export const INITIAL_BANNERS: Banner[] = [
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-turtle-sando-01',
+    productCode: 'AF-TS01',
     name: "Men's Turtle Energy Graphic Gym Vest / Sando",
     category: 't-shirts',
     mrp: 499,
@@ -108,6 +109,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-1',
+    productCode: 'AF-SH01',
     name: 'Royal Oxford Luxury Cotton Shirt',
     category: 'shirts',
     mrp: 1999,
@@ -130,6 +132,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-2',
+    productCode: 'AF-TS02',
     name: 'Urban Oversized Heavyweight Tee',
     category: 't-shirts',
     mrp: 1299,
@@ -151,6 +154,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-3',
+    productCode: 'AF-JN01',
     name: 'Vintage Distressed Slim Fit Jeans',
     category: 'jeans',
     mrp: 2799,
@@ -172,12 +176,14 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-4',
+    productCode: 'AF-TR01',
     name: 'Tailored Italian Pleated Formal Trousers',
     category: 'trousers',
     mrp: 2299,
     sellingPrice: 1199,
     discountPercent: 48,
     sizes: ['30', '32', '34', '36', '38'],
+    colors: ['Charcoal Grey', 'Navy Blue', 'Beige / Cream'],
     stock: 12,
     description: 'Sophisticated tapered trousers featuring double forward pleats and extended button tab waist. Breathable poly-viscose blend that drapes elegantly.',
     images: [
@@ -192,12 +198,14 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-5',
+    productCode: 'AF-JK01',
     name: 'Midnight Black Moto Leather Jacket',
     category: 'jackets',
     mrp: 4999,
     sellingPrice: 2699,
     discountPercent: 46,
     sizes: ['M', 'L', 'XL'],
+    colors: ['Midnight Black', 'Chocolate Brown'],
     stock: 4, // low stock test
     description: 'High-grade supple faux leather with quilted shoulder panels and matte black heavy YKK zippers. Satin lining for wind resistance and comfortable layering.',
     images: [
@@ -212,12 +220,14 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-6',
+    productCode: 'AF-FT01',
     name: 'Pro-Glide White Leather Court Sneakers',
     category: 'footwear',
     mrp: 3499,
     sellingPrice: 1799,
     discountPercent: 49,
     sizes: ['7 UK', '8 UK', '9 UK', '10 UK'],
+    colors: ['Pure White', 'Jet Black'],
     stock: 8,
     description: 'Clean minimalist low-top sneakers in soft micro-grain leather. Memory foam insole with anti-skid vulcanized rubber cupsole for all-day comfort.',
     images: [
@@ -232,12 +242,14 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-7',
+    productCode: 'AF-AC01',
     name: 'Executive Full-Grain Leather Reversible Belt',
     category: 'accessories',
     mrp: 1499,
     sellingPrice: 699,
     discountPercent: 53,
     sizes: ['Free Size (28-40)'],
+    colors: ['Deep Black', 'Cognac Tan'],
     stock: 25,
     description: 'Dual-sided reversible belt (Deep Black and Rich Cognac Tan) with a rotatable brush-metal alloy pin buckle. Made from 100% genuine top-grain leather.',
     images: [
@@ -252,12 +264,14 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-8',
+    productCode: 'AF-SH02',
     name: 'Classic Linen Resort Cuban Collar Shirt',
     category: 'shirts',
     mrp: 2199,
     sellingPrice: 1099,
     discountPercent: 50,
     sizes: ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
+    colors: ['Olive Green', 'Sky Blue', 'Beige / Cream'],
     stock: 21,
     description: 'Lightweight pure linen casual shirt with retro camp collar and straight vented hem. Ideal for summer holidays and breezy casual hangouts.',
     images: [
@@ -313,4 +327,8 @@ export const INITIAL_SETTINGS: StoreSettings = {
   kistPeAppName: 'Kist Pe Merchant (किस्त पे)',
   kistPeRazorpayKeyId: 'rzp_live_TieQ54NWyK5uZj',
   appPublicUrl: 'https://github.com/prashantvaishnav1990-png/Abhi-fashion-app/releases/latest/download/AbhiFashion-Customer.apk',
+  // VIP Loyalty Milestone Reward (Extra 5% off after ₹10,000 total orders)
+  isLoyaltyDiscountEnabled: true,
+  loyaltyThreshold: 10000,
+  loyaltyDiscountPercent: 5,
 };

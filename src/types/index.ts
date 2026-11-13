@@ -11,6 +11,7 @@ export interface Category {
 
 export interface Product {
   id: string;
+  productCode?: string; // Unique SKU / Item Code (e.g. 'AF-JNS-01', 'AF-SHR-02')
   name: string;
   category: string;
   mrp: number;
@@ -79,6 +80,7 @@ export interface CustomerProfile {
 
 export interface OrderItem {
   productId: string;
+  productCode?: string; // Unique SKU e.g. 'AF-JNS-01'
   productName: string;
   image: string;
   selectedSize: string;
@@ -120,6 +122,8 @@ export interface Order {
   kistPeTransactionId?: string;
   upiTransactionId?: string;
   cardLast4?: string;
+  loyaltyDiscountApplied?: boolean;
+  loyaltyDiscountPercent?: number;
 }
 
 export interface Banner {
@@ -131,6 +135,21 @@ export interface Banner {
   image: string;
   categoryId?: CategoryId;
   isEnabled: boolean;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerMobile: string;
+  rating: number;
+  comment: string;
+  selectedSize?: string;
+  selectedColor?: string;
+  isVerifiedPurchase: boolean;
+  createdAt: string;
 }
 
 export interface StoreSettings {
@@ -178,4 +197,8 @@ export interface StoreSettings {
   kistPeRazorpayEnabled?: boolean;
   // Poster Barcode & App Download Public URL
   appPublicUrl?: string;
+  // VIP Loyalty Milestone Reward Settings
+  isLoyaltyDiscountEnabled?: boolean;
+  loyaltyThreshold?: number;
+  loyaltyDiscountPercent?: number;
 }

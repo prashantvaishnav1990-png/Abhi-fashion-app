@@ -14,15 +14,23 @@ import {
   Sparkles,
   Maximize2,
   Trash2,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
 } from 'lucide-react';
-import { Product, StoreSettings } from '../types';
+import { CustomerProfile, Order, Product, ProductReview, StoreSettings } from '../types';
 import { HDImageLightbox } from './HDImageLightbox';
-import { getColorHex, getHdImageUrl, getCategoryFallbackImage } from '../utils/productHelpers';
+import { ProductReviewsSection } from './ProductReviewsSection';
+import { getColorHex, getHdImageUrl, getCategoryFallbackImage, getProductCode } from '../utils/productHelpers';
+import { cleanProductDescription, getProductSpecifications } from '../utils/productSpecifications';
 import { useBackHandler } from '../hooks/useBackHandler';
 
 interface ProductDetailsModalProps {
   product: Product | null;
   settings?: StoreSettings;
+  orders?: Order[];
+  reviews?: ProductReview[];
+  currentCustomer?: CustomerProfile | null;
   onClose: () => void;
   onAddToCart: (product: Product, size: string, quantity: number, color?: string) => void;
   onBuyNow: (product: Product, size: string, quantity: number, color?: string) => void;
@@ -32,6 +40,9 @@ interface ProductDetailsModalProps {
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   product,
   settings,
+  orders = [],
+  reviews = [],
+  currentCustomer = null,
   onClose,
   onAddToCart,
   onBuyNow,
@@ -47,6 +58,9 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const [addedNotice, setAddedNotice] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
+  const [activeDetailsTab, setActiveDetailsTab] = useState<'specs' | 'manufacturer'>('specs');
+  const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
+  const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(true);
 
   // Phone back button: close image lightbox first, then size guide
   useBackHandler(Boolean(product && isLightboxOpen), () => setIsLightboxOpen(false), 30, 'ProductLightbox');
@@ -60,6 +74,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
       setSelectedColor(product.colors && product.colors.length > 0 ? product.colors[0] : undefined);
       setSelectedImageIndex(0);
       setQuantity(1);
+      setIsSpecsExpanded(false);
+      setActiveDetailsTab('specs');
     }
   }, [product]);
 
@@ -70,6 +86,9 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const images = product.images && product.images.length > 0 ? product.images : [
     'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1200'
   ];
+
+  const { cleanText, tagline } = cleanProductDescription(product.description);
+  const { highlights, specs } = getProductSpecifications(product, selectedColor);
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
@@ -216,14 +235,35 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             <div className="flex flex-col">
               {/* Title & Brand */}
               <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className="text-[11px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/30">
                     ABHI FASHION EXCLUSIVE
                   </span>
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
+                    Code: #{getProductCode(product)}
+                  </span>
                   <div className="flex items-center gap-1 text-xs text-amber-400">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span className="font-bold">{product.rating}</span>
-                    <span className="text-slate-400">({product.reviewsCount} reviews)</span>
+                    <span className="font-bold">
+                      {(() => {
+                        const prodRevs = reviews.filter((r) => r.productId === product.id);
+                        if (prodRevs.length > 0) {
+                          const avg =
+                            prodRevs.reduce((acc, r) => acc + Number(r.rating || 0), 0) /
+                            prodRevs.length;
+                          return avg.toFixed(1);
+                        }
+                        return product.rating;
+                      })()}
+                    </span>
+                    <span className="text-slate-400">
+                      (
+                      {(() => {
+                        const prodRevs = reviews.filter((r) => r.productId === product.id);
+                        return prodRevs.length > 0 ? prodRevs.length : product.reviewsCount;
+                      })()}{' '}
+                      reviews)
+                    </span>
                   </div>
                 </div>
 
@@ -516,14 +556,159 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               )}
             </div>
 
-            {/* Description */}
-            <div className="mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                Product Description
+            {/* Flipkart-Style Section 1: Product Highlights */}
+            <div className="mb-4 pt-3 border-t border-slate-800/90">
+              <button
+                type="button"
+                onClick={() => setIsHighlightsExpanded(!isHighlightsExpanded)}
+                className="w-full flex items-center justify-between text-left group cursor-pointer"
+              >
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                    <span>Product highlights</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Key features, specifications and more</p>
+                </div>
+                <div className="w-7 h-7 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-400 group-hover:text-amber-400 transition">
+                  {isHighlightsExpanded ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </button>
+
+              {isHighlightsExpanded && (
+                <div className="mt-2.5 space-y-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80">
+                  {highlights.map((highlight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5" />
+                      <span className="leading-relaxed">{highlight}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Flipkart-Style Section 2: All Details (Specifications & Manufacturer Info) */}
+            <div className="mb-4 pt-3 border-t border-slate-800/90">
+              <div className="flex items-center justify-between mb-2.5">
+                <h3 className="text-sm font-bold text-slate-100">All details</h3>
+              </div>
+
+              {/* Tabs like Flipkart */}
+              <div className="flex items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveDetailsTab('specs')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    activeDetailsTab === 'specs'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
+                  }`}
+                >
+                  Specifications
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveDetailsTab('manufacturer')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    activeDetailsTab === 'manufacturer'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
+                  }`}
+                >
+                  Manufacturer info
+                </button>
+              </div>
+
+              {activeDetailsTab === 'specs' ? (
+                <div>
+                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+                    General
+                  </div>
+
+                  {/* 2-Column Specs Grid exactly matching Flipkart */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/70">
+                    {(isSpecsExpanded ? specs : specs.slice(0, 6)).map((item, index) => (
+                      <div key={index} className="border-b border-slate-800/80 pb-2">
+                        <div className="text-[11px] text-slate-400 font-medium">{item.label}</div>
+                        <div className="text-xs sm:text-[13px] font-semibold text-slate-100 truncate mt-0.5" title={item.value}>
+                          {item.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* See more / See less button */}
+                  {specs.length > 6 && (
+                    <div className="mt-2.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setIsSpecsExpanded(!isSpecsExpanded)}
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-800 text-xs font-semibold text-amber-400 border border-slate-700 hover:border-amber-500/40 cursor-pointer transition active:scale-95 shadow-sm"
+                      >
+                        <span>{isSpecsExpanded ? 'See less' : 'See more'}</span>
+                        {isSpecsExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Manufacturer & Store Info Tab */
+                <div className="space-y-2.5 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-850 text-xs">
+                  <div className="border-b border-slate-800/80 pb-2">
+                    <div className="text-[11px] text-slate-400">Brand & Store</div>
+                    <div className="font-bold text-amber-400 text-sm">ABHI FASHION Luxury Apparel</div>
+                    <div className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                      Bazar Line, Opp. Jama Masjid Road, Chhuikhadan, District KCG, Chhattisgarh - 491885
+                    </div>
+                  </div>
+                  <div className="border-b border-slate-800/80 pb-2">
+                    <div className="text-[11px] text-slate-400">Proprietor & Support</div>
+                    <div className="font-semibold text-slate-100">Abhishek Vaishnav</div>
+                    <div className="text-[11px] text-emerald-400 font-mono mt-0.5">
+                      WhatsApp / Phone: +91 93018 78103
+                    </div>
+                  </div>
+                  <div className="border-b border-slate-800/80 pb-2">
+                    <div className="text-[11px] text-slate-400">Country of Origin</div>
+                    <div className="font-semibold text-slate-100">India (भारत) 🇮🇳</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-400">Store Verification & Assurance</div>
+                    <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                      100% Genuine Certified Stock. Hand-checked and steam-pressed prior to 10-minute doorstep dispatch.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Flipkart-Style Section 3: Clean Product Description / About */}
+            <div className="mb-4 pt-3 border-t border-slate-800/90">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                About this item
               </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                {product.description}
-              </p>
+
+              {/* Tagline Badge if available */}
+              {tagline && (
+                <div className="mb-2.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold italic flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>"{tagline}"</span>
+                </div>
+              )}
+
+              {/* Cleaned Description Text */}
+              <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/70">
+                <p className="text-xs sm:text-[13px] text-slate-200 leading-relaxed whitespace-pre-line">
+                  {cleanText || product.description}
+                </p>
+              </div>
             </div>
 
             {/* Store Guarantees */}
@@ -541,6 +726,14 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <span>Cards & EMI Accepted</span>
               </div>
             </div>
+
+            {/* Verified Customer Reviews & Ratings Section */}
+            <ProductReviewsSection
+              product={product}
+              orders={orders}
+              reviews={reviews}
+              currentCustomer={currentCustomer}
+            />
 
             {/* Dukaan Owner Quick Delete Option */}
             {onDeleteProduct && (

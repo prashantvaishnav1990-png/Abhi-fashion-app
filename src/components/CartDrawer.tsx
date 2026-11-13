@@ -1,13 +1,16 @@
 import React from 'react';
-import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Truck, CreditCard, Zap } from 'lucide-react';
-import { CartItem, StoreSettings } from '../types';
-import { getCategoryFallbackImage } from '../utils/productHelpers';
+import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Truck, CreditCard, Zap, Crown, Gift } from 'lucide-react';
+import { CartItem, CustomerProfile, Order, StoreSettings } from '../types';
+import { getCategoryFallbackImage, getProductCode, getColorHex } from '../utils/productHelpers';
+import { calculateCustomerLoyalty, calculateLoyaltyDiscountAmount } from '../utils/loyaltyHelper';
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
   settings: StoreSettings;
+  orders?: Order[];
+  currentCustomer?: CustomerProfile | null;
   onUpdateQuantity: (cartItemId: string, newQty: number) => void;
   onRemoveItem: (cartItemId: string) => void;
   onProceedToCheckout: () => void;
@@ -19,6 +22,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClose,
   items,
   settings,
+  orders = [],
+  currentCustomer,
   onUpdateQuantity,
   onRemoveItem,
   onProceedToCheckout,
@@ -36,9 +41,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   );
   const totalSavings = totalMrp - subtotal;
 
+  const loyalty = calculateCustomerLoyalty(orders, currentCustomer?.mobile, settings);
+  const loyaltyDiscount = calculateLoyaltyDiscountAmount(subtotal, loyalty);
+
   const isFreeDelivery = subtotal >= settings.freeDeliveryThreshold;
   const deliveryFee = items.length === 0 ? 0 : isFreeDelivery ? 0 : settings.deliveryCharges;
-  const grandTotal = subtotal + deliveryFee;
+  const grandTotal = Math.max(0, subtotal - loyaltyDiscount + deliveryFee);
 
   const amountNeededForFreeDelivery = Math.max(0, settings.freeDeliveryThreshold - subtotal);
 
@@ -153,10 +161,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-semibold bg-slate-800 text-amber-300 px-2 py-0.5 rounded border border-slate-700">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                        #{getProductCode(item.product)}
+                      </span>
+                      <span className="text-[11px] font-semibold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
                         Size: {item.selectedSize}
                       </span>
+                      {item.selectedColor && (
+                        <span className="text-[11px] font-semibold bg-slate-800 text-amber-300 px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+                          <span
+                            className="w-2 h-2 rounded-full border border-white/40 shrink-0"
+                            style={{ backgroundColor: getColorHex(item.selectedColor) }}
+                          />
+                          <span>{item.selectedColor}</span>
+                        </span>
+                      )}
                       {item.product.discountPercent > 0 && (
                         <span className="text-[10px] font-bold text-rose-400">
                           {item.product.discountPercent}% Off
@@ -235,8 +255,39 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
               {totalSavings > 0 && (
                 <div className="flex justify-between text-emerald-400 font-semibold">
-                  <span>Total Discount Savings</span>
+                  <span>MRP Discount Savings</span>
                   <span>-₹{totalSavings.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {loyalty.isEnabled && loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-amber-300 font-bold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/30">
+                  <span className="flex items-center gap-1">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>VIP Loyalty Reward (Extra {loyalty.discountPercent}% OFF)</span>
+                  </span>
+                  <span>-₹{loyaltyDiscount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {loyalty.isEnabled && !loyalty.isDiscountUnlocked && (
+                <div className="p-2 rounded-xl bg-slate-900/90 border border-amber-500/20 text-[11px] flex items-start gap-2">
+                  <Gift className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-slate-300 leading-snug">
+                    {loyalty.hasCustomerMobile ? (
+                      loyalty.totalOrdersValue + subtotal >= loyalty.nextMilestoneAmount ? (
+                        <span className="text-emerald-300 font-semibold">
+                          🎉 Is order ke baad aap ₹{loyalty.nextMilestoneAmount.toLocaleString('en-IN')} paar kar lenge — agle order par <strong>Extra {loyalty.discountPercent}% OFF</strong> unlock hoga!
+                        </span>
+                      ) : (
+                        <span>
+                          VIP Total: <strong className="text-white">₹{loyalty.totalOrdersValue.toLocaleString('en-IN')}</strong> / ₹{loyalty.nextMilestoneAmount.toLocaleString('en-IN')} • ₹{(loyalty.amountNeededForNext).toLocaleString('en-IN')} aur orders par agle purchase me <strong className="text-amber-300">Extra {loyalty.discountPercent}% OFF!</strong>
+                        </span>
+                      )
+                    ) : (
+                      <span>
+                        <strong className="text-amber-300">VIP Offer:</strong> Total ₹{loyalty.threshold.toLocaleString('en-IN')} ke orders poore karne par agle purchase me <strong className="text-white">Extra {loyalty.discountPercent}% OFF</strong> paayein!
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="pt-2 border-t border-slate-800 flex justify-between items-baseline text-sm">

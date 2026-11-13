@@ -133,3 +133,60 @@ export function getHdImageUrl(url: string, category?: string): string {
   }
   return resolved;
 }
+
+/**
+ * Returns a human-friendly unique Product Code / SKU (e.g., AF-JNS-01, AF-SHT-02)
+ */
+export function getProductCode(product: {
+  id?: string;
+  name?: string;
+  category?: string;
+  productCode?: string;
+}): string {
+  if (product.productCode && product.productCode.trim()) {
+    return product.productCode.trim().toUpperCase().replace(/^#/, '');
+  }
+
+  // Meaningful category abbreviations
+  const cat = (product.category || '').toLowerCase();
+  let prefix = 'AF-PROD';
+  if (cat.includes('jean') || cat.includes('denim')) prefix = 'AF-JNS';
+  else if (cat.includes('shirt') && !cat.includes('t-shirt')) prefix = 'AF-SHT';
+  else if (cat.includes('t-shirt') || cat.includes('tee') || cat.includes('sando')) prefix = 'AF-TSH';
+  else if (cat.includes('trouser') || cat.includes('chino') || cat.includes('pant')) prefix = 'AF-TRS';
+  else if (cat.includes('jacket') || cat.includes('coat') || cat.includes('blazer')) prefix = 'AF-JKT';
+  else if (cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker')) prefix = 'AF-FTW';
+  else if (cat.includes('acc') || cat.includes('belt') || cat.includes('watch')) prefix = 'AF-ACC';
+  else if (cat) prefix = `AF-${cat.slice(0, 3).toUpperCase()}`;
+
+  // Use clean trailing identifier from product id
+  const rawId = (product.id || '').replace(/^prod-/, '').replace(/[^a-zA-Z0-9]/g, '');
+  const idSuffix = rawId ? rawId.slice(-4).toUpperCase() : '01';
+
+  return `${prefix}-${idSuffix}`;
+}
+
+/**
+ * Resolves an image path into a publicly viewable URL for WhatsApp and SMS sharing
+ */
+export function getPublicImageUrl(imagePath?: string): string {
+  if (!imagePath || typeof imagePath !== 'string' || !imagePath.trim()) return '';
+
+  const clean = imagePath.trim();
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
+    return clean;
+  }
+
+  if (clean.startsWith('data:image') || clean.startsWith('blob:')) {
+    // Large binary data URIs shouldn't be posted directly into text messages
+    return '';
+  }
+
+  // Relative public assets (/assets/...)
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  if (origin && !origin.includes('localhost')) {
+    return `${origin}${clean.startsWith('/') ? '' : '/'}${clean}`;
+  }
+
+  return clean;
+}

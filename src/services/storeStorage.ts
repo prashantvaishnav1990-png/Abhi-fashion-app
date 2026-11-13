@@ -13,6 +13,7 @@ import {
   OrderStatus,
   PaymentMethod,
   Product,
+  ProductReview,
   StoreSettings,
 } from '../types';
 import {
@@ -24,7 +25,7 @@ import {
   writeBatch,
   getDocs,
 } from 'firebase/firestore';
-import { db, testFirestoreConnection } from './firebase';
+import { auth, db, testFirestoreConnection } from './firebase';
 import { NotificationService } from './notificationService';
 import { apiUrl } from '../utils/apiConfig';
 
@@ -34,8 +35,57 @@ const STORAGE_KEYS = {
   BANNERS: 'abhi_fashion_banners_v1',
   SETTINGS: 'abhi_fashion_settings_v1',
   ORDERS: 'abhi_fashion_orders_v1',
+  REVIEWS: 'abhi_fashion_reviews_v1',
   ADMIN_AUTH: 'abhi_fashion_admin_session_v1',
 };
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid ?? null,
+      email: auth.currentUser?.email ?? null,
+      emailVerified: auth.currentUser?.emailVerified ?? null,
+      isAnonymous: auth.currentUser?.isAnonymous ?? null,
+      tenantId: auth.currentUser?.tenantId ?? null,
+      providerInfo:
+        auth.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 // Listeners for reactivity across components
 type StorageListener = () => void;
@@ -220,6 +270,33 @@ async function syncOrdersFromServer() {
   }
 }
 
+async function syncReviewsFromServer() {
+  try {
+    const res = await fetch(apiUrl('/api/reviews'));
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && Array.isArray(data.reviews)) {
+      const local = StoreService.getReviews();
+      const mergedMap = new Map<string, ProductReview>();
+      local.forEach((r) => mergedMap.set(r.id, r));
+      data.reviews.forEach((r: ProductReview) => mergedMap.set(r.id, r));
+      const merged = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const currentLocal = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+      const newJson = JSON.stringify(merged);
+      if (currentLocal !== newJson) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, newJson);
+        } catch {}
+        notifyListeners();
+      }
+    }
+  } catch {
+    // Quiet fail on network hiccups
+  }
+}
+
 // Check versions on server for fast continuous sync
 async function checkVersionsFromServer() {
   try {
@@ -242,6 +319,9 @@ async function checkVersionsFromServer() {
     }
     if (lastKnownVersions.orders && versions.orders !== lastKnownVersions.orders) {
       syncOrdersFromServer();
+    }
+    if (lastKnownVersions.reviews && versions.reviews !== lastKnownVersions.reviews) {
+      syncReviewsFromServer();
     }
     lastKnownVersions = versions;
   } catch {}
@@ -311,6 +391,20 @@ function initRealtimeSync() {
 
     es.addEventListener('orders', () => {
       syncOrdersFromServer();
+    });
+
+    es.addEventListener('reviews', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.data && Array.isArray(payload.data)) {
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(payload.data));
+          notifyListeners();
+        } else {
+          syncReviewsFromServer();
+        }
+      } catch {
+        syncReviewsFromServer();
+      }
     });
 
     es.onerror = () => {
@@ -542,6 +636,42 @@ export function initFirestoreSync() {
     );
   } catch (err) {
     console.warn('Failed to attach Firestore orders listener:', err);
+  }
+
+  // 6. REVIEWS: Real-time listener
+  try {
+    const reviewsCol = collection(db, 'reviews');
+    onSnapshot(
+      reviewsCol,
+      (snapshot) => {
+        const firestoreReviews: ProductReview[] = [];
+        snapshot.forEach((d) => firestoreReviews.push(d.data() as ProductReview));
+
+        if (firestoreReviews.length === 0) return;
+
+        const local = StoreService.getReviews();
+        const mergedMap = new Map<string, ProductReview>();
+        local.forEach((r) => mergedMap.set(r.id, r));
+        firestoreReviews.forEach((r) => mergedMap.set(r.id, r));
+        const merged = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        const currentLocal = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+        const newJson = JSON.stringify(merged);
+        if (currentLocal !== newJson) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.REVIEWS, newJson);
+          } catch {}
+          notifyListeners();
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'reviews');
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach Firestore reviews listener:', err);
   }
 }
 
@@ -826,6 +956,9 @@ export const StoreService = {
         emiMinAmount: parsed.emiMinAmount || 5000,
         emiDownPaymentPercent: parsed.emiDownPaymentPercent || 33,
         appPublicUrl: parsed.appPublicUrl || INITIAL_SETTINGS.appPublicUrl,
+        isLoyaltyDiscountEnabled: parsed.isLoyaltyDiscountEnabled ?? true,
+        loyaltyThreshold: Number(parsed.loyaltyThreshold) || 10000,
+        loyaltyDiscountPercent: Number(parsed.loyaltyDiscountPercent) || 5,
       };
       if (sanitized.appPublicUrl !== parsed.appPublicUrl) {
         try {
@@ -920,6 +1053,8 @@ export const StoreService = {
     paymentStatus: 'Pending' | 'Paid';
     notes?: string;
     emiDetails?: { tenure: string; monthlyInstallment: number; providerNote: string };
+    loyaltyDiscountApplied?: boolean;
+    loyaltyDiscountPercent?: number;
   }): Order {
     const orders = this.getOrders();
     const randNum = Math.floor(10000 + Math.random() * 90000);
@@ -937,8 +1072,14 @@ export const StoreService = {
       paymentMethod: payload.paymentMethod,
       paymentStatus: payload.paymentStatus,
       orderStatus: 'Pending',
-      notes: payload.notes,
-      emiDetails: payload.emiDetails,
+      ...(payload.notes ? { notes: payload.notes } : {}),
+      ...(payload.emiDetails ? { emiDetails: payload.emiDetails } : {}),
+      ...(payload.loyaltyDiscountApplied
+        ? {
+            loyaltyDiscountApplied: true,
+            loyaltyDiscountPercent: payload.loyaltyDiscountPercent || 5,
+          }
+        : {}),
     };
 
     // Inventory management: automatically reduce total stock and size-specific stock
@@ -1194,6 +1335,178 @@ export const StoreService = {
 
     return { success: false, count: local.length };
   },
+
+  // PRODUCT REVIEWS & RATINGS (Strictly verified against Delivered orders)
+  getReviews(productId?: string): ProductReview[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+      const parsed: ProductReview[] = data ? JSON.parse(data) : [];
+      const list = Array.isArray(parsed) ? parsed : [];
+      const sorted = [...list].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      if (productId) {
+        return sorted.filter((r) => r.productId === productId);
+      }
+      return sorted;
+    } catch {
+      return [];
+    }
+  },
+
+  getReviewForOrderProduct(orderId: string, productId: string): ProductReview | undefined {
+    return this.getReviews(productId).find(
+      (r) => r.orderId === orderId && r.productId === productId
+    );
+  },
+
+  hasReviewedOrderProduct(orderId: string, productId: string): boolean {
+    return Boolean(this.getReviewForOrderProduct(orderId, productId));
+  },
+
+  getEligibleDeliveredOrdersForProduct(productId: string, customerMobile?: string): Order[] {
+    const cleanTargetMobile = customerMobile
+      ? String(customerMobile).replace(/\D/g, '').slice(-10)
+      : '';
+    return this.getOrders().filter((order) => {
+      if (order.orderStatus !== 'Delivered') return false;
+      const containsProduct =
+        Array.isArray(order.items) && order.items.some((item) => item.productId === productId);
+      if (!containsProduct) return false;
+      if (cleanTargetMobile) {
+        const orderMob = String(order.customer?.mobile || '').replace(/\D/g, '').slice(-10);
+        if (orderMob !== cleanTargetMobile) return false;
+      }
+      return !this.hasReviewedOrderProduct(order.id, productId);
+    });
+  },
+
+  submitReview(payload: {
+    productId: string;
+    orderId: string;
+    rating: number;
+    comment: string;
+    customerName?: string;
+    selectedSize?: string;
+    selectedColor?: string;
+  }): { success: boolean; review?: ProductReview; error?: string } {
+    const cleanComment = String(payload.comment || '').trim().slice(0, 1000);
+    if (cleanComment.length < 3) {
+      return {
+        success: false,
+        error: 'Kripya kam se kam 3 akshar ka feedback likhein.',
+      };
+    }
+
+    const numericRating = Math.min(5, Math.max(1, Math.round(Number(payload.rating) || 0)));
+    if (numericRating < 1 || numericRating > 5) {
+      return { success: false, error: 'Kripya 1 se 5 star rating select karein.' };
+    }
+
+    const order = this.getOrders().find((o) => o.id === payload.orderId);
+    if (!order) {
+      return { success: false, error: 'Order record nahi mila.' };
+    }
+    if (order.orderStatus !== 'Delivered') {
+      return {
+        success: false,
+        error: 'Feedback aur rating sirf "Delivered" orders ke baad hi submit kar sakte hain.',
+      };
+    }
+
+    const orderItem = order.items.find((it) => it.productId === payload.productId);
+    if (!orderItem) {
+      return { success: false, error: 'Ye product is order me shamil nahi hai.' };
+    }
+
+    if (this.hasReviewedOrderProduct(order.id, payload.productId)) {
+      return {
+        success: false,
+        error: 'Aap is delivered order ke is product ka review pehle hi de chuke hain.',
+      };
+    }
+
+    const sanitizedId = `rev-${order.id}-${payload.productId}`
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 128);
+    const sizeVal = String(payload.selectedSize || orderItem.selectedSize || '').trim().slice(0, 40);
+    const colorVal = String(payload.selectedColor || orderItem.selectedColor || '').trim().slice(0, 60);
+
+    const review: ProductReview = {
+      id: sanitizedId,
+      productId: payload.productId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerName: String(payload.customerName || order.customer?.name || 'Verified Customer')
+        .trim()
+        .slice(0, 120),
+      customerMobile: String(order.customer?.mobile || '').replace(/\D/g, '').slice(-10),
+      rating: numericRating,
+      comment: cleanComment,
+      ...(sizeVal ? { selectedSize: sizeVal } : {}),
+      ...(colorVal ? { selectedColor: colorVal } : {}),
+      isVerifiedPurchase: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    const allReviews = this.getReviews();
+    const updatedReviews = [
+      review,
+      ...allReviews.filter(
+        (r) => r.id !== review.id && !(r.orderId === review.orderId && r.productId === review.productId)
+      ),
+    ];
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(updatedReviews));
+    } catch {}
+
+    // Update target product rating & reviewsCount cleanly
+    const products = this.getProducts();
+    const targetProduct = products.find((p) => p.id === payload.productId);
+    if (targetProduct) {
+      const prodReviews = updatedReviews.filter((r) => r.productId === payload.productId);
+      const avg =
+        prodReviews.reduce((acc, r) => acc + Number(r.rating || 0), 0) / prodReviews.length;
+      targetProduct.rating = Math.round(avg * 10) / 10;
+      targetProduct.reviewsCount = prodReviews.length;
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      } catch {}
+
+      try {
+        setDoc(doc(db, 'products', targetProduct.id), targetProduct).catch((err) =>
+          console.warn('Firestore update product rating warning:', err)
+        );
+      } catch {}
+
+      fetch(apiUrl('/api/products/upsert'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: targetProduct }),
+      }).catch(() => {});
+    }
+
+    notifyListeners();
+
+    // Sync review to Firestore
+    try {
+      setDoc(doc(db, 'reviews', review.id), review).catch((err) => {
+        try {
+          handleFirestoreError(err, OperationType.WRITE, `reviews/${review.id}`);
+        } catch {}
+      });
+    } catch {}
+
+    // Sync review to Express backend
+    fetch(apiUrl('/api/reviews'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(review),
+    }).catch(() => {});
+
+    return { success: true, review };
+  },
 };
 
 // Immediate background initialization on startup (Web & APK)
@@ -1205,6 +1518,7 @@ if (typeof window !== 'undefined') {
     syncCategoriesFromServer();
     syncSettingsFromServer();
     syncOrdersFromServer();
+    syncReviewsFromServer();
     initRealtimeSync();
 
     // Fast polling fallback

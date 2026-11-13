@@ -755,6 +755,7 @@ Kripya order verify karke packing shuru karein!`;
   const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
   const CATEGORIES_FILE = path.join(DATA_DIR, 'categories.json');
   const BANNERS_FILE = path.join(DATA_DIR, 'banners.json');
+  const REVIEWS_FILE = path.join(DATA_DIR, 'reviews.json');
 
   function readJsonFile<T>(filePath: string, fallback: T): T {
     if (!fs.existsSync(filePath)) return fallback;
@@ -785,10 +786,11 @@ Kripya order verify karke packing shuru karein!`;
     categories: Date.now(),
     settings: Date.now(),
     orders: Date.now(),
+    reviews: Date.now(),
   };
 
   function broadcastRealtimeUpdate(
-    type: 'products' | 'banners' | 'categories' | 'settings' | 'orders',
+    type: 'products' | 'banners' | 'categories' | 'settings' | 'orders' | 'reviews',
     data?: any
   ) {
     currentVersions[type] = Date.now();
@@ -984,6 +986,7 @@ http://localhost:3000/admin`;
     if (paymentStatus) order.paymentStatus = paymentStatus;
     order.updatedAt = new Date().toISOString();
     writeJsonFile(ORDERS_FILE, orders);
+    broadcastRealtimeUpdate('orders', orders);
     res.json({ success: true, order });
   });
 
@@ -1282,6 +1285,97 @@ http://localhost:3000/admin`;
     writeJsonFile(BANNERS_FILE, banners);
     broadcastRealtimeUpdate('banners', banners);
     res.json({ success: true, remaining: banners.length });
+  });
+
+  // 6. PRODUCT REVIEWS & RATINGS API
+  app.get('/api/reviews', (req, res) => {
+    const productId = req.query.productId ? String(req.query.productId) : null;
+    let reviews = readJsonFile<any[]>(REVIEWS_FILE, []);
+    if (productId) {
+      reviews = reviews.filter((r) => r.productId === productId);
+    }
+    reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json({ reviews });
+  });
+
+  app.post('/api/reviews', (req, res) => {
+    const review = req.body;
+    if (!review || !review.productId || !review.orderId || !review.comment) {
+      res.status(400).json({ error: 'productId, orderId, and comment are required' });
+      return;
+    }
+
+    const numericRating = Number(review.rating);
+    if (!Number.isFinite(numericRating) || numericRating < 1 || numericRating > 5) {
+      res.status(400).json({ error: 'Rating must be between 1 and 5' });
+      return;
+    }
+
+    // Verify against server orders if order is stored on server
+    const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+    const matchedOrder = orders.find((o) => o.id === review.orderId);
+    if (matchedOrder) {
+      if (matchedOrder.orderStatus !== 'Delivered') {
+        res.status(403).json({ error: 'Reviews are allowed only after order is Delivered' });
+        return;
+      }
+      const hasProduct =
+        Array.isArray(matchedOrder.items) &&
+        matchedOrder.items.some((it: any) => it.productId === review.productId);
+      if (!hasProduct) {
+        res.status(400).json({ error: 'Product not found in the specified order' });
+        return;
+      }
+    }
+
+    const reviews = readJsonFile<any[]>(REVIEWS_FILE, []);
+    const normalizedReview = {
+      id: review.id || `rev-${review.orderId}-${review.productId}`,
+      productId: String(review.productId),
+      orderId: String(review.orderId),
+      orderNumber: String(review.orderNumber || matchedOrder?.orderNumber || ''),
+      customerName: String(review.customerName || matchedOrder?.customer?.name || 'Verified Buyer').slice(0, 120),
+      customerMobile: String(review.customerMobile || matchedOrder?.customer?.mobile || '')
+        .replace(/\D/g, '')
+        .slice(-10),
+      rating: Math.round(numericRating),
+      comment: String(review.comment).trim().slice(0, 1000),
+      ...(review.selectedSize ? { selectedSize: String(review.selectedSize).slice(0, 40) } : {}),
+      ...(review.selectedColor ? { selectedColor: String(review.selectedColor).slice(0, 60) } : {}),
+      isVerifiedPurchase: true,
+      createdAt: review.createdAt || new Date().toISOString(),
+    };
+
+    const existingIdx = reviews.findIndex(
+      (r) =>
+        r.id === normalizedReview.id ||
+        (r.orderId === normalizedReview.orderId && r.productId === normalizedReview.productId)
+    );
+    if (existingIdx >= 0) {
+      reviews[existingIdx] = normalizedReview;
+    } else {
+      reviews.unshift(normalizedReview);
+    }
+    writeJsonFile(REVIEWS_FILE, reviews);
+    broadcastRealtimeUpdate('reviews', reviews);
+
+    // Recalculate product rating and review count on server catalog
+    const products = readJsonFile<any[] | null>(PRODUCTS_FILE, null);
+    if (Array.isArray(products)) {
+      const targetProd = products.find((p) => p.id === normalizedReview.productId);
+      if (targetProd) {
+        const prodReviews = reviews.filter((r) => r.productId === normalizedReview.productId);
+        if (prodReviews.length > 0) {
+          const sum = prodReviews.reduce((acc, r) => acc + Number(r.rating || 0), 0);
+          targetProd.rating = Math.round((sum / prodReviews.length) * 10) / 10;
+          targetProd.reviewsCount = prodReviews.length;
+          writeJsonFile(PRODUCTS_FILE, products);
+          broadcastRealtimeUpdate('products', products);
+        }
+      }
+    }
+
+    res.json({ success: true, review: normalizedReview });
   });
 
   // Vite middleware setup

@@ -24,9 +24,11 @@ import {
   Radio,
   Image as ImageIcon,
   QrCode,
+  Crown,
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from './data/initialData';
 import { apiUrl, resolveImageUrl } from './utils/apiConfig';
+import { calculateCustomerLoyalty } from './utils/loyaltyHelper';
 import {
   Banner,
   CartItem,
@@ -38,6 +40,7 @@ import {
   OrderStatus,
   PaymentMethod,
   Product,
+  ProductReview,
   StoreSettings,
 } from './types';
 import { StoreService, subscribeToStore } from './services/storeStorage';
@@ -160,6 +163,7 @@ export default function App() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [settings, setSettings] = useState<StoreSettings>(StoreService.getSettings());
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
 
   // Customer Profile & Multi-Device Mobile Sync State
   const [customer, setCustomer] = useState<CustomerProfile | null>(() =>
@@ -280,11 +284,16 @@ export default function App() {
   // Load store data and subscribe to changes
   useEffect(() => {
     const refreshData = () => {
-      setProducts(StoreService.getProducts());
+      const latestProducts = StoreService.getProducts();
+      setProducts(latestProducts);
       setCategories(StoreService.getCategories());
       setBanners(StoreService.getBanners());
       setSettings(StoreService.getSettings());
       setOrders(StoreService.getOrders());
+      setReviews(StoreService.getReviews());
+      setSelectedProduct((prev) =>
+        prev ? latestProducts.find((p) => p.id === prev.id) || prev : null
+      );
     };
 
     refreshData();
@@ -460,6 +469,8 @@ export default function App() {
     paymentStatus: 'Pending' | 'Paid';
     notes?: string;
     emiDetails?: { tenure: string; monthlyInstallment: number; providerNote: string };
+    loyaltyDiscountApplied?: boolean;
+    loyaltyDiscountPercent?: number;
   }) => {
     const newOrder = StoreService.createOrder(payload);
     setCart([]); // Clear cart
@@ -480,6 +491,7 @@ export default function App() {
   const discountedProducts = products.filter((p) => p.discountPercent >= 48);
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const customerLoyalty = calculateCustomerLoyalty(orders, customer?.mobile, settings);
 
   // -------------------------------------------------------------
   // DEDICATED ADMIN APP MODE (For Store Owner / Order Notifications)
@@ -626,6 +638,84 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* VIP ₹10,000 Loyalty Reward Club Card */}
+            {customerLoyalty.isEnabled && (
+              <div
+                className={`p-4 rounded-2xl border shadow-lg transition ${
+                  customerLoyalty.isDiscountUnlocked
+                    ? 'bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/10 border-amber-400/50'
+                    : 'bg-slate-900/80 border-slate-800'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                      <Crown className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                          ABHI FASHION VIP CLUB
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                            customerLoyalty.isDiscountUnlocked
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                          }`}
+                        >
+                          {customerLoyalty.isDiscountUnlocked
+                            ? `🎉 EXTRA ${customerLoyalty.discountPercent}% OFF UNLOCKED`
+                            : `EXTRA ${customerLoyalty.discountPercent}% OFF ON NEXT ORDER`}
+                        </span>
+                      </div>
+                      <h3 className="text-sm sm:text-base font-black text-white mt-0.5">
+                        {customerLoyalty.isDiscountUnlocked
+                          ? `Badhai Ho! Agle Purchase Par Seedha Extra ${customerLoyalty.discountPercent}% Discount Paayein`
+                          : `Total ₹${customerLoyalty.threshold.toLocaleString('en-IN')} Orders Ke Baad Agle Purchase Par Extra ${customerLoyalty.discountPercent}% OFF!`}
+                      </h3>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        {customerLoyalty.isDiscountUnlocked
+                          ? `Aapki total shopping ₹${customerLoyalty.totalOrdersValue.toLocaleString('en-IN')} ho chuki hai — Checkout me automatic ${customerLoyalty.discountPercent}% discount apply ho jayega.`
+                          : customerLoyalty.hasCustomerMobile
+                          ? `Aapke ab tak ke valid orders: ₹${customerLoyalty.totalOrdersValue.toLocaleString('en-IN')} / ₹${customerLoyalty.nextMilestoneAmount.toLocaleString('en-IN')} (Bas ₹${customerLoyalty.amountNeededForNext.toLocaleString('en-IN')} baaki)`
+                          : 'Apna 10-digit mobile number login karein aur apna ₹10,000 shopping reward progress dekhein.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    {customerLoyalty.hasCustomerMobile ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('orders')}
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
+                      >
+                        {customerLoyalty.isDiscountUnlocked ? 'Shop With 5% OFF' : `${customerLoyalty.progressPercent}% Progress`}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsLoginModalOpen(true)}
+                        className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-sm"
+                      >
+                        Check My Reward
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {customerLoyalty.hasCustomerMobile && (
+                  <div className="mt-3 w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-400 transition-all duration-300"
+                      style={{ width: `${customerLoyalty.progressPercent}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Featured Products Section */}
             {featuredProducts.length > 0 && (
@@ -836,6 +926,8 @@ export default function App() {
               onClose={() => setActiveTab('home')}
               items={cart}
               settings={settings}
+              orders={orders}
+              currentCustomer={customer}
               onUpdateQuantity={handleUpdateCartQuantity}
               onRemoveItem={handleRemoveCartItem}
               onProceedToCheckout={() => setIsCheckoutOpen(true)}
@@ -856,6 +948,7 @@ export default function App() {
                 : orders
             }
             settings={settings}
+            reviews={reviews}
             currentCustomer={customer}
             onOpenLogin={() => setIsLoginModalOpen(true)}
             onCancelOrder={(orderId) => StoreService.updateOrderStatus(orderId, 'Cancelled')}
@@ -981,6 +1074,9 @@ export default function App() {
       <ProductDetailsModal
         product={selectedProduct}
         settings={settings}
+        orders={orders}
+        reviews={reviews}
+        currentCustomer={customer}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
         onBuyNow={handleBuyNow}
@@ -992,6 +1088,8 @@ export default function App() {
         onClose={() => setIsCartOpen(false)}
         items={cart}
         settings={settings}
+        orders={orders}
+        currentCustomer={customer}
         onUpdateQuantity={handleUpdateCartQuantity}
         onRemoveItem={handleRemoveCartItem}
         onProceedToCheckout={() => {
@@ -1010,6 +1108,7 @@ export default function App() {
         onClose={() => setIsCheckoutOpen(false)}
         items={cart}
         settings={settings}
+        orders={orders}
         currentCustomer={customer}
         onCreateOrder={handleCreateOrder}
         onOrderSuccess={(order) => {
@@ -1021,6 +1120,7 @@ export default function App() {
       <OrderConfirmationModal
         order={confirmedOrder}
         settings={settings}
+        orders={orders}
         onClose={() => setConfirmedOrder(null)}
         onViewAllOrders={() => {
           setConfirmedOrder(null);

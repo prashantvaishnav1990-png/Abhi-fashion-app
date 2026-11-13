@@ -69,14 +69,15 @@ jobs:
           cd android
           ./gradlew assembleCustomerDebug assembleAdminDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Prepare APK Files
+      - name: Prepare & Verify APK Files
         run: |
+          set -e
           mkdir -p output-apk
           # Locate Customer APK
           if [ -f "android/app/build/outputs/apk/customer/debug/app-customer-debug.apk" ]; then
             cp android/app/build/outputs/apk/customer/debug/app-customer-debug.apk output-apk/AbhiFashion-Customer.apk
           else
-            CUST_FOUND=$(find android/app/build/outputs/apk -name "*customer*debug*.apk" -o -name "app-debug.apk" | head -n 1)
+            CUST_FOUND=$(find android/app/build/outputs/apk \( -name "*customer*debug*.apk" -o -name "app-debug.apk" \) | head -n 1)
             [ -n "$CUST_FOUND" ] && cp "$CUST_FOUND" output-apk/AbhiFashion-Customer.apk
           fi
 
@@ -92,32 +93,40 @@ jobs:
             fi
           fi
 
+          if [ ! -f "output-apk/AbhiFashion-Customer.apk" ] || [ ! -f "output-apk/AbhiFashion-Admin.apk" ]; then
+            echo "❌ Error: APK files were not generated!"
+            find android/app/build/outputs/apk || true
+            exit 1
+          fi
+
           echo "=== Generated APK Files ==="
-          ls -la output-apk/
+          ls -lh output-apk/
 
       - name: Upload Customer APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: AbhiFashion-Customer-APK
           path: output-apk/AbhiFashion-Customer.apk
-          if-no-files-found: warn
-          retention-days: 1
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Upload Admin APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: AbhiFashion-Admin-APK
           path: output-apk/AbhiFashion-Admin.apk
-          if-no-files-found: warn
-          retention-days: 1
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Create GitHub Release with both APK downloads
+        id: create_release
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-v1.0.${{ github.run_number }}
           name: "ABHI FASHION APKs (Customer & Admin) - v1.0.${{ github.run_number }}"
+          make_latest: true
           body: |
             ### 📱 ABHI FASHION - Android Apps
 
@@ -135,3 +144,28 @@ jobs:
             output-apk/AbhiFashion-Admin.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Direct APK Download Links to Workflow Summary
+        if: always()
+        run: |
+          CUST_SIZE=$(du -h output-apk/AbhiFashion-Customer.apk 2>/dev/null | cut -f1 || echo "N/A")
+          ADMIN_SIZE=$(du -h output-apk/AbhiFashion-Admin.apk 2>/dev/null | cut -f1 || echo "N/A")
+          {
+            echo "## 📱 ABHI FASHION — APK Download Center"
+            echo ""
+            if [ "${{ steps.create_release.outcome }}" = "success" ]; then
+              echo "### 🚀 Direct Phone Install Links (No ZIP, Direct APK)"
+              echo "- 🛍️ **[Download AbhiFashion-Customer.apk (${CUST_SIZE})](https://github.com/${{ github.repository }}/releases/download/apk-v1.0.${{ github.run_number }}/AbhiFashion-Customer.apk)**"
+              echo "- 🛡️ **[Download AbhiFashion-Admin.apk (${ADMIN_SIZE})](https://github.com/${{ github.repository }}/releases/download/apk-v1.0.${{ github.run_number }}/AbhiFashion-Admin.apk)**"
+              echo ""
+              echo "✅ **Permanent Latest Link (Poster QR Code):** https://github.com/${{ github.repository }}/releases/latest/download/AbhiFashion-Customer.apk"
+            else
+              echo "⚠️ **Direct Release creation skipped or failed** — download from the **Artifacts** section below on this page!"
+              echo "(Tip: Repo Settings → Actions → General → Workflow permissions me **Read and write permissions** enable rakhein)."
+            fi
+            echo ""
+            echo "### 📦 Workflow Artifacts (90 Days Valid)"
+            echo "Neeche **Artifacts** section me scroll karein aur download karein:"
+            echo "- \`AbhiFashion-Customer-APK\` (${CUST_SIZE})"
+            echo "- \`AbhiFashion-Admin-APK\` (${ADMIN_SIZE})"
+          } >> "$GITHUB_STEP_SUMMARY"

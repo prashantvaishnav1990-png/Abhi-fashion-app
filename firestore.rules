@@ -31,11 +31,63 @@ service cloud.firestore {
       allow write: if isValidId(settingId);
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll([
+        'id',
+        'productId',
+        'orderId',
+        'orderNumber',
+        'customerName',
+        'customerMobile',
+        'rating',
+        'comment',
+        'isVerifiedPurchase',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id',
+        'productId',
+        'orderId',
+        'orderNumber',
+        'customerName',
+        'customerMobile',
+        'rating',
+        'comment',
+        'selectedSize',
+        'selectedColor',
+        'isVerifiedPurchase',
+        'createdAt'
+      ]) &&
+      data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+      data.productId is string && data.productId.size() > 0 && data.productId.size() <= 128 &&
+      data.orderId is string && data.orderId.size() > 0 && data.orderId.size() <= 128 &&
+      data.orderNumber is string && data.orderNumber.size() > 0 && data.orderNumber.size() <= 100 &&
+      data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 120 &&
+      data.customerMobile is string && data.customerMobile.size() <= 20 &&
+      data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+      data.comment is string && data.comment.size() > 0 && data.comment.size() <= 1000 &&
+      (!('selectedSize' in data) || (data.selectedSize is string && data.selectedSize.size() <= 40)) &&
+      (!('selectedColor' in data) || (data.selectedColor is string && data.selectedColor.size() <= 60)) &&
+      data.isVerifiedPurchase is bool &&
+      data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 100;
+    }
+
     // Orders: create allowed for checkout, read and status update allowed
     match /orders/{orderId} {
       allow read: if true;
       allow create: if isValidId(orderId);
       allow update, delete: if isValidId(orderId);
+    }
+
+    // Verified Product Reviews: readable by all, schema-validated create/update
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isValidId(reviewId) && isValidReview(request.resource.data);
+      allow update: if isValidId(reviewId) &&
+        isValidReview(request.resource.data) &&
+        request.resource.data.orderId == resource.data.orderId &&
+        request.resource.data.productId == resource.data.productId;
+      allow delete: if false;
     }
 
     // Test connection document for connection healthcheck

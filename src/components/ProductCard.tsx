@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingBag, Zap, Eye, Check, Sparkles, Trash2 } from 'lucide-react';
 import { Product } from '../types';
-import { getColorHex, getHdImageUrl, getCategoryFallbackImage } from '../utils/productHelpers';
+import { getColorHex, getHdImageUrl, getCategoryFallbackImage, getProductCode } from '../utils/productHelpers';
 
 interface ProductCardProps {
   product: Product;
@@ -175,13 +175,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Product Content Details */}
       <div className="flex flex-1 flex-col p-3 sm:p-4">
-        {/* Category Tag */}
+        {/* Category & Item Code Tag */}
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-bold tracking-wider uppercase text-amber-400/90">
-            {product.category}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] font-bold tracking-wider uppercase text-amber-400/90 truncate">
+              {product.category}
+            </span>
+            <span className="text-[9px] font-mono font-bold text-amber-300 bg-amber-400/10 px-1 py-0.2 rounded border border-amber-400/30 shrink-0">
+              #{getProductCode(product)}
+            </span>
+          </div>
           {product.images && product.images.length > 1 && (
-            <span className="text-[10px] font-mono text-slate-400">
+            <span className="text-[10px] font-mono text-slate-400 shrink-0">
               {product.images.length} Photos
             </span>
           )}

@@ -66,7 +66,10 @@
         "isCodAvailable": { "type": "boolean" },
         "isOnlinePaymentAvailable": { "type": "boolean" },
         "isEmiAvailable": { "type": "boolean" },
-        "adminPin": { "type": "string", "maxLength": 20 }
+        "adminPin": { "type": "string", "maxLength": 20 },
+        "isLoyaltyDiscountEnabled": { "type": "boolean" },
+        "loyaltyThreshold": { "type": "number" },
+        "loyaltyDiscountPercent": { "type": "number" }
       },
       "required": ["storeName"]
     },
@@ -78,12 +81,46 @@
         "id": { "type": "string", "maxLength": 128 },
         "orderNumber": { "type": "string", "maxLength": 100 },
         "createdAt": { "type": "string", "maxLength": 100 },
+        "discount": { "type": "number" },
         "totalAmount": { "type": "number" },
         "paymentMethod": { "type": "string", "maxLength": 50 },
         "paymentStatus": { "type": "string", "maxLength": 50 },
-        "orderStatus": { "type": "string", "maxLength": 50 }
+        "orderStatus": { "type": "string", "maxLength": 50 },
+        "loyaltyDiscountApplied": { "type": "boolean" },
+        "loyaltyDiscountPercent": { "type": "number" }
       },
       "required": ["id", "orderNumber", "totalAmount"]
+    },
+    "ProductReview": {
+      "title": "ProductReview",
+      "description": "Verified buyer review and rating submitted after order delivery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "orderId": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 100 },
+        "customerName": { "type": "string", "maxLength": 120 },
+        "customerMobile": { "type": "string", "maxLength": 20 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 1000 },
+        "selectedSize": { "type": "string", "maxLength": 40 },
+        "selectedColor": { "type": "string", "maxLength": 60 },
+        "isVerifiedPurchase": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": [
+        "id",
+        "productId",
+        "orderId",
+        "orderNumber",
+        "customerName",
+        "customerMobile",
+        "rating",
+        "comment",
+        "isVerifiedPurchase",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -106,6 +143,10 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Customer orders submitted from checkout and updated by store admin"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "ProductReview",
+      "description": "Verified customer product reviews and ratings submitted for delivered orders"
     }
   }
 }

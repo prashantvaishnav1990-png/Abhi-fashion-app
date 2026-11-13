@@ -21,17 +21,21 @@ import {
   Sparkles,
   Smartphone,
   RefreshCw,
+  Crown,
 } from 'lucide-react';
 import { CartItem, CustomerAddress, CustomerProfile, Order, PaymentMethod, StoreSettings } from '../types';
 import { CustomerService } from '../services/customerService';
 import { PaymentGatewayService } from '../services/paymentGatewayService';
 import { useBackHandler } from '../hooks/useBackHandler';
+import { getProductCode, getPublicImageUrl } from '../utils/productHelpers';
+import { calculateCustomerLoyalty, calculateLoyaltyDiscountAmount } from '../utils/loyaltyHelper';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
   settings: StoreSettings;
+  orders?: Order[];
   currentCustomer?: CustomerProfile | null;
   onOrderSuccess: (order: Order) => void;
   onCreateOrder: (payload: {
@@ -45,6 +49,8 @@ interface CheckoutModalProps {
     paymentStatus: 'Pending' | 'Paid';
     notes?: string;
     emiDetails?: { tenure: string; monthlyInstallment: number; providerNote: string };
+    loyaltyDiscountApplied?: boolean;
+    loyaltyDiscountPercent?: number;
   }) => Order;
 }
 
@@ -53,6 +59,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   items,
   settings,
+  orders = [],
   currentCustomer,
   onOrderSuccess,
   onCreateOrder,
@@ -126,6 +133,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     0
   );
 
+  const activeCustomerMobile =
+    (formData.mobile || '').replace(/\D/g, '').length >= 10
+      ? formData.mobile
+      : currentCustomer?.mobile;
+
+  const loyalty = calculateCustomerLoyalty(orders, activeCustomerMobile, settings);
+  const loyaltyDiscount = calculateLoyaltyDiscountAmount(subtotal, loyalty);
+
   // Delivery Fee based on distance:
   // Chhuikhadan local (0-3 km) = FREE (0)
   // Under 10 km = ₹50
@@ -135,7 +150,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       ? (settings.deliveryChhuikhadanFee ?? 0)
       : (settings.deliveryUnder10kmFee ?? 50);
 
-  const totalAmount = subtotal + deliveryFee;
+  const totalAmount = Math.max(0, subtotal - loyaltyDiscount + deliveryFee);
 
   // Prepaid only rule: 4 km and above cannot use COD!
   const isCodAllowed = deliveryZone === 'chhuikhadan' && settings.isCodAvailable;
@@ -240,16 +255,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     onlineUpiRef?: string;
   }) => {
     const cleanMobile = formData.mobile.replace(/\D/g, '');
-    const orderItems = items.map((i) => ({
-      productId: i.product.id,
-      productName: i.product.name,
-      image: i.product.images[0] || '',
-      selectedSize: i.selectedSize,
-      quantity: i.quantity,
-      unitPrice: i.product.sellingPrice,
-      unitMrp: i.product.mrp,
-      totalPrice: i.product.sellingPrice * i.quantity,
-    }));
+    const orderItems = items.map((i) => {
+      const code = getProductCode(i.product);
+      const color =
+        i.selectedColor ||
+        (i.product.colors && i.product.colors.length > 0 ? i.product.colors[0] : undefined);
+      return {
+        productId: i.product.id,
+        productCode: code,
+        productName: i.product.name,
+        image: i.product.images[0] || '',
+        selectedSize: i.selectedSize,
+        selectedColor: color,
+        quantity: i.quantity,
+        unitPrice: i.product.sellingPrice,
+        unitMrp: i.product.mrp,
+        totalPrice: i.product.sellingPrice * i.quantity,
+      };
+    });
 
     const activePayment = overrides?.paymentMethod || selectedPayment;
     const isEmi = activePayment === 'upi_mandate' || activePayment === 'emi';
@@ -317,12 +340,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       items: orderItems,
       subtotal,
       deliveryFee,
-      discount: 0,
+      discount: loyaltyDiscount,
       totalAmount,
       paymentMethod: activePayment,
       paymentStatus: overrides?.paymentStatus || (isPaidMethod ? 'Paid' : 'Pending'),
       notes: notesText || undefined,
       emiDetails,
+      loyaltyDiscountApplied: loyaltyDiscount > 0,
+      loyaltyDiscountPercent: loyaltyDiscount > 0 ? loyalty.discountPercent : 0,
     });
 
     if (effectiveRzpId) {
@@ -346,13 +371,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       upiId: isEmi ? cleanUpi : (cleanUpi || undefined),
     }).catch(() => {});
 
-    // WhatsApp Order Details Receipt
+    // WhatsApp Order Details Receipt with Product Code, Color & Photo Link
     const itemLines = orderItems
-      .map(
-        (it, idx) =>
-          `${idx + 1}. *${it.productName}* (${it.selectedSize}) x ${it.quantity} = ₹${it.totalPrice}`
-      )
-      .join('\n');
+      .map((it, idx) => {
+        const codeText = it.productCode ? ` [Code: #${it.productCode}]` : '';
+        const colorText = it.selectedColor ? `\n   🎨 *Colour:* ${it.selectedColor}` : '';
+        const photoUrl = getPublicImageUrl(it.image);
+        const photoText = photoUrl ? `\n   📸 *Photo:* ${photoUrl}` : '';
+        return `${idx + 1}. *${it.productName}*${codeText}\n   📏 *Size:* ${it.selectedSize}${colorText}\n   🔢 *Qty:* ${it.quantity} x ₹${it.unitPrice} = *₹${it.totalPrice}*${photoText}`;
+      })
+      .join('\n\n');
 
     let emiBlock = '';
     if (isEmi) {
@@ -399,7 +427,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 *Items Ordered:*
 ${itemLines}
 
-*Items Total:* ₹${subtotal}
+*Items Total:* ₹${subtotal}${loyaltyDiscount > 0 ? `\n*👑 VIP Loyalty Discount (Extra ${loyalty.discountPercent}% OFF):* -₹${loyaltyDiscount}` : ''}
 *Delivery Fee:* ₹${deliveryFee} (${deliveryZone === 'chhuikhadan' ? 'FREE - 10 MINUTE EXPRESS' : '₹50'})
 *Total Amount Payable:* ₹${totalAmount}
 ${notesText ? `*Customer Note:* ${notesText}\n` : ''}---------------------------------------
@@ -1861,11 +1889,78 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya d
 
           {/* Section 3: Order Summary & Place Order */}
           <div className="pt-3 border-t border-slate-800">
+            {/* VIP ₹10,000 Loyalty Discount Status Banner */}
+            {loyalty.isEnabled && (
+              <div className={`mb-3 p-3 rounded-2xl border text-xs ${
+                loyaltyDiscount > 0
+                  ? 'bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-amber-500/10 border-amber-400/50 text-amber-200'
+                  : 'bg-slate-900/80 border-slate-800 text-slate-300'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Crown className={`w-4 h-4 shrink-0 ${loyaltyDiscount > 0 ? 'text-amber-400' : 'text-slate-400'}`} />
+                    <span className={loyaltyDiscount > 0 ? 'text-amber-300' : 'text-white'}>
+                      {loyaltyDiscount > 0
+                        ? `🎉 VIP Loyalty Extra ${loyalty.discountPercent}% OFF Applied!`
+                        : `VIP Reward: Extra ${loyalty.discountPercent}% OFF`}
+                    </span>
+                  </div>
+                  {loyaltyDiscount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black text-[11px]">
+                      -₹{loyaltyDiscount.toLocaleString('en-IN')}
+                    </span>
+                  )}
+                </div>
+
+                {loyaltyDiscount > 0 ? (
+                  <p className="text-[11px] text-emerald-300 mt-1">
+                    Aapke pichle orders ka total <strong>₹{loyalty.totalOrdersValue.toLocaleString('en-IN')}</strong> (₹{loyalty.threshold.toLocaleString('en-IN')}+) poore ho chuke hain — is order par <strong>Extra {loyalty.discountPercent}% discount</strong> lag gaya hai!
+                  </p>
+                ) : loyalty.hasCustomerMobile ? (
+                  <div className="mt-1.5 space-y-1.5">
+                    <div className="flex justify-between text-[11px]">
+                      <span>
+                        Ab tak ke total orders: <strong className="text-white">₹{loyalty.totalOrdersValue.toLocaleString('en-IN')}</strong> / ₹{loyalty.nextMilestoneAmount.toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-amber-400 font-bold">{loyalty.progressPercent}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300"
+                        style={{ width: `${loyalty.progressPercent}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      {loyalty.totalOrdersValue + totalAmount >= loyalty.nextMilestoneAmount ? (
+                        <span className="text-emerald-300 font-semibold">
+                          ✨ Is order ke complete hote hi aapke <strong>NEXT purchase</strong> par Extra {loyalty.discountPercent}% OFF unlock ho jayega!
+                        </span>
+                      ) : (
+                        <span>
+                          ₹{loyalty.amountNeededForNext.toLocaleString('en-IN')} aur purchase poore karne ke baad aapke agle order par Extra {loyalty.discountPercent}% OFF milega.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Total ₹{loyalty.threshold.toLocaleString('en-IN')} ki shopping poore hone par agle order me automatic Extra {loyalty.discountPercent}% discount milta hai. (Mobile number darj karein check karne ke liye)
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-slate-300">
                 <span>Items Total ({items.reduce((s, i) => s + i.quantity, 0)} items):</span>
                 <span className="font-semibold text-white">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-emerald-400 font-bold">
+                  <span>👑 VIP Loyalty Extra {loyalty.discountPercent}% Discount:</span>
+                  <span>-₹{loyaltyDiscount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-300">
                 <span>
                   Delivery Charge ({deliveryZone === 'chhuikhadan' ? 'Chhuikhadan Local' : deliveryZone === 'under_10km' ? 'Under 10 km' : 'Above 10 km'}):

@@ -13,12 +13,16 @@ import {
   Check,
   BellRing,
   Smartphone,
+  Crown,
 } from 'lucide-react';
 import { Order, StoreSettings } from '../types';
+import { getPublicImageUrl } from '../utils/productHelpers';
+import { calculateCustomerLoyalty } from '../utils/loyaltyHelper';
 
 interface OrderConfirmationModalProps {
   order: Order | null;
   settings: StoreSettings;
+  orders?: Order[];
   onClose: () => void;
   onViewAllOrders: () => void;
 }
@@ -26,12 +30,20 @@ interface OrderConfirmationModalProps {
 export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   order,
   settings,
+  orders = [],
   onClose,
   onViewAllOrders,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
   if (!order) return null;
+
+  const ordersWithCurrent = orders.some((o) => o.id === order.id) ? orders : [order, ...orders];
+  const loyaltyAfterOrder = calculateCustomerLoyalty(
+    ordersWithCurrent,
+    order.customer?.mobile,
+    settings
+  );
 
   const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -50,11 +62,14 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   // Pre-formatted WhatsApp Message for store owner
   const handleSendToWhatsApp = () => {
     const itemLines = order.items
-      .map(
-        (it, i) =>
-          `${i + 1}. *${it.productName}* (Size: ${it.selectedSize}) x ${it.quantity} = ₹${it.totalPrice}`
-      )
-      .join('\n');
+      .map((it, i) => {
+        const codeText = it.productCode ? ` [Code: #${it.productCode}]` : '';
+        const colorText = it.selectedColor ? `\n   🎨 *Colour:* ${it.selectedColor}` : '';
+        const photoUrl = getPublicImageUrl(it.image);
+        const photoText = photoUrl ? `\n   📸 *Photo:* ${photoUrl}` : '';
+        return `${i + 1}. *${it.productName}*${codeText}\n   📏 *Size:* ${it.selectedSize}${colorText}\n   🔢 *Qty:* ${it.quantity} x ₹${it.unitPrice} = *₹${it.totalPrice}*${photoText}`;
+      })
+      .join('\n\n');
 
     let emiText = '';
     if (order.emiDetails || order.paymentMethod === 'emi') {
@@ -158,6 +173,44 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya c
             </div>
           </div>
 
+          {/* VIP Loyalty Celebration / Progress */}
+          {loyaltyAfterOrder.isEnabled && (
+            (order.loyaltyDiscountApplied || order.discount > 0 || loyaltyAfterOrder.isDiscountUnlocked) ? (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/10 border border-amber-400/50 text-xs space-y-1">
+                <div className="flex items-center gap-2 font-black text-amber-300">
+                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    {loyaltyAfterOrder.isDiscountUnlocked
+                      ? `🏆 VIP Extra ${loyaltyAfterOrder.discountPercent}% OFF Unlocked for Next Purchase!`
+                      : `🎉 Extra ${order.loyaltyDiscountPercent || loyaltyAfterOrder.discountPercent}% VIP Loyalty Discount Saved!`}
+                  </span>
+                </div>
+                {order.discount > 0 && (
+                  <p className="text-[11px] text-emerald-300 font-semibold">
+                    Is order me aapko ₹{order.discount.toLocaleString('en-IN')} ka Extra VIP discount mila hai!
+                  </p>
+                )}
+                {loyaltyAfterOrder.isDiscountUnlocked && (
+                  <p className="text-[11px] text-slate-200 leading-relaxed">
+                    Aapki total orders value <strong className="text-white">₹{loyaltyAfterOrder.totalOrdersValue.toLocaleString('en-IN')}</strong> ho chuki hai! Agle (next) purchase par seedha <strong className="text-amber-300">Extra {loyaltyAfterOrder.discountPercent}% OFF</strong> automatically milega.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    VIP Reward Progress: <strong className="text-white">₹{loyaltyAfterOrder.totalOrdersValue.toLocaleString('en-IN')}</strong> / ₹{loyaltyAfterOrder.nextMilestoneAmount.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <span className="text-amber-300 font-bold shrink-0">
+                  {loyaltyAfterOrder.progressPercent}%
+                </span>
+              </div>
+            )
+          )}
+
           {/* WhatsApp & SMS Direct Send Buttons */}
           <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-200 space-y-2.5">
             <div className="flex items-start gap-3">
@@ -210,10 +263,21 @@ Namaste Abhishek bhaiya! Maine ABHI FASHION se ye order place kiya hai. Kripya c
                   />
                   <div className="flex-1 min-w-0">
                     <h5 className="font-bold text-white truncate text-xs">{item.productName}</h5>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                      <span>Size: {item.selectedSize}</span>
-                      <span>•</span>
-                      <span>Qty: {item.quantity}</span>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                      {item.productCode && (
+                        <span className="font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.2 rounded text-[10px]">
+                          #{item.productCode}
+                        </span>
+                      )}
+                      <span className="bg-slate-800 text-slate-200 px-1.5 py-0.2 rounded text-[10px] font-semibold">
+                        Size: {item.selectedSize}
+                      </span>
+                      {item.selectedColor && (
+                        <span className="bg-slate-800 text-amber-300 px-1.5 py-0.2 rounded text-[10px] font-semibold">
+                          Colour: {item.selectedColor}
+                        </span>
+                      )}
+                      <span>• Qty: {item.quantity}</span>
                     </div>
                   </div>
                   <div className="font-bold text-white text-xs">

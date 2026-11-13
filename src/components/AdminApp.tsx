@@ -487,10 +487,29 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onSwitchToCustomerApp }) => 
               <div className="text-xs font-bold uppercase text-slate-400 mb-2">Ordered Items:</div>
               <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
                 {incomingOrder.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-                    <span className="font-bold text-slate-200 truncate max-w-[220px]">
-                      {item.productName} ({item.selectedSize}) x{item.quantity}
-                    </span>
+                  <div key={i} className="flex items-center justify-between text-xs bg-slate-900/60 p-2 rounded-xl border border-slate-800 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {item.image && (
+                        <img src={item.image} alt="" className="w-9 h-11 rounded-lg object-cover bg-slate-800 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-200 truncate">
+                          {item.productName}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+                          {item.productCode && (
+                            <span className="font-mono text-amber-300 font-bold bg-amber-400/10 px-1 rounded">
+                              #{item.productCode}
+                            </span>
+                          )}
+                          <span>Size: <strong className="text-white">{item.selectedSize}</strong></span>
+                          {item.selectedColor && (
+                            <span className="text-amber-300 font-semibold">• Colour: {item.selectedColor}</span>
+                          )}
+                          <span>• Qty: {item.quantity}</span>
+                        </div>
+                      </div>
+                    </div>
                     <span className="font-black text-amber-300 shrink-0">₹{item.totalPrice}</span>
                   </div>
                 ))}

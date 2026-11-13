@@ -14,12 +14,17 @@ import {
   Smartphone,
   User,
   ChevronLeft,
+  Crown,
+  Star,
 } from 'lucide-react';
-import { CustomerProfile, Order, OrderStatus, StoreSettings } from '../types';
+import { CustomerProfile, Order, OrderStatus, ProductReview, StoreSettings } from '../types';
+import { calculateCustomerLoyalty } from '../utils/loyaltyHelper';
+import { QuickReviewForm } from './ProductReviewsSection';
 
 interface OrdersViewProps {
   orders: Order[];
   settings: StoreSettings;
+  reviews?: ProductReview[];
   currentCustomer?: CustomerProfile | null;
   onOpenLogin?: () => void;
   onCancelOrder: (orderId: string) => void;
@@ -29,6 +34,7 @@ interface OrdersViewProps {
 export const OrdersView: React.FC<OrdersViewProps> = ({
   orders,
   settings,
+  reviews = [],
   currentCustomer,
   onOpenLogin,
   onCancelOrder,
@@ -36,6 +42,12 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [reviewingItemKey, setReviewingItemKey] = useState<string | null>(null);
+
+  const activeLoyaltyMobile =
+    currentCustomer?.mobile ||
+    (orders.length > 0 ? orders[0]?.customer?.mobile : '');
+  const loyalty = calculateCustomerLoyalty(orders, activeLoyaltyMobile, settings);
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
@@ -171,6 +183,60 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
         </div>
       )}
 
+      {/* VIP ₹10,000 Milestone Progress Card */}
+      {loyalty.isEnabled && (
+        <div
+          className={`p-4 mb-5 rounded-2xl border shadow-lg ${
+            loyalty.isDiscountUnlocked
+              ? 'bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/10 border-amber-400/50'
+              : 'bg-slate-900/90 border-slate-800'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                  {loyalty.isDiscountUnlocked
+                    ? `🎉 Extra ${loyalty.discountPercent}% VIP Discount Unlocked!`
+                    : `VIP Reward: Extra ${loyalty.discountPercent}% OFF on Next Purchase`}
+                </h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  {loyalty.isDiscountUnlocked
+                    ? `Aapki total shopping ₹${loyalty.totalOrdersValue.toLocaleString('en-IN')} ho gayi hai — agle order par automatic ${loyalty.discountPercent}% Extra OFF milega!`
+                    : loyalty.hasCustomerMobile
+                    ? `Total Orders Value: ₹${loyalty.totalOrdersValue.toLocaleString('en-IN')} / ₹${loyalty.nextMilestoneAmount.toLocaleString('en-IN')} (₹${loyalty.amountNeededForNext.toLocaleString('en-IN')} more needed)`
+                    : `Total ₹${loyalty.threshold.toLocaleString('en-IN')} ke orders poore hone par next purchase par Extra ${loyalty.discountPercent}% OFF milega.`}
+                </p>
+              </div>
+            </div>
+
+            <span
+              className={`px-2.5 py-1 rounded-full text-[11px] font-black border shrink-0 ${
+                loyalty.isDiscountUnlocked
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+              }`}
+            >
+              {loyalty.isDiscountUnlocked
+                ? `READY: EXTRA ${loyalty.discountPercent}% OFF`
+                : `${loyalty.progressPercent}% Complete`}
+            </span>
+          </div>
+
+          {loyalty.hasCustomerMobile && (
+            <div className="mt-3 w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-400 transition-all duration-300"
+                style={{ width: `${loyalty.progressPercent}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
         {['all', 'Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled'].map(
@@ -297,29 +363,94 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                   </div>
                 )}
 
-                {/* Items preview */}
+                {/* Items preview + Rate & Review on Delivered Orders */}
                 <div className="space-y-2 pt-1">
-                  {order.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3 p-2 rounded-xl bg-slate-900/60 border border-slate-800/80"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.productName}
-                        className="w-12 h-14 rounded-lg object-cover bg-slate-800 shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-white text-xs truncate">{item.productName}</h4>
-                        <span className="text-[11px] text-slate-400">
-                          Size: <strong className="text-slate-200">{item.selectedSize}</strong> • Qty: {item.quantity}
-                        </span>
+                  {order.items.map((item, idx) => {
+                    const itemReviewKey = `${order.id}::${item.productId}`;
+                    const existingReview = reviews.find(
+                      (r) => r.orderId === order.id && r.productId === item.productId
+                    );
+                    const isDelivered = order.orderStatus === 'Delivered';
+                    const isFormOpen = reviewingItemKey === itemReviewKey;
+
+                    return (
+                      <div key={idx} className="space-y-2">
+                        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                          <img
+                            src={item.image}
+                            alt={item.productName}
+                            className="w-12 h-14 rounded-lg object-cover bg-slate-800 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-white text-xs truncate">
+                              {item.productName}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                              {item.productCode && (
+                                <span className="font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.2 rounded text-[10px]">
+                                  #{item.productCode}
+                                </span>
+                              )}
+                              <span>
+                                Size: <strong className="text-slate-200">{item.selectedSize}</strong>
+                              </span>
+                              {item.selectedColor && (
+                                <span className="flex items-center gap-1 text-amber-300">
+                                  • Colour: <strong className="text-white">{item.selectedColor}</strong>
+                                </span>
+                              )}
+                              <span>• Qty: {item.quantity}</span>
+                            </div>
+
+                            {/* Review action or submitted badge for Delivered orders */}
+                            {isDelivered && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                {existingReview ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                    Reviewed ({existingReview.rating}★)
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReviewingItemKey(isFormOpen ? null : itemReviewKey)
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-[11px] font-bold transition cursor-pointer"
+                                  >
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span>{isFormOpen ? 'Close Review' : 'Rate & Review'}</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <span className="font-bold text-white text-xs shrink-0">
+                            ₹{item.totalPrice.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+
+                        {existingReview && isDelivered && (
+                          <div className="ml-2 pl-3 border-l-2 border-emerald-500/40 text-[11px] text-slate-300 italic">
+                            "{existingReview.comment}"
+                          </div>
+                        )}
+
+                        {isDelivered && !existingReview && isFormOpen && (
+                          <QuickReviewForm
+                            productId={item.productId}
+                            productName={item.productName}
+                            order={order}
+                            selectedSize={item.selectedSize}
+                            selectedColor={item.selectedColor}
+                            defaultCustomerName={currentCustomer?.name || order.customer?.name}
+                            onSuccess={() => setReviewingItemKey(null)}
+                            onCancel={() => setReviewingItemKey(null)}
+                          />
+                        )}
                       </div>
-                      <span className="font-bold text-white text-xs">
-                        ₹{item.totalPrice.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Easy EMI Mandate Details */}
