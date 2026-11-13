@@ -94,7 +94,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "475244e8435a3de148caad11c0355a41"
   }, {
     "url": "index.html",
-    "revision": "d47bece71178bc7c1cdfd505d145b40b"
+    "revision": "1ceee4c6440b359dcbdd2f9ca3bbd527"
   }, {
     "url": "icon.svg",
     "revision": "3f4d01f4a06fa2f227fbefe5cf1f8342"
@@ -105,16 +105,16 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "apple-touch-icon.png",
     "revision": "948ee6a06b2f2f33c2d6e117ff16af51"
   }, {
-    "url": "assets/web-Bdtscsa0.js",
+    "url": "assets/web-CXMtmjrH.js",
     "revision": null
   }, {
-    "url": "assets/index-D21o8wFF.js",
+    "url": "assets/index-zDP0SWxk.js",
     "revision": null
   }, {
     "url": "assets/index-CoGYEYuS.css",
     "revision": null
   }, {
-    "url": "assets/esm-DwkAN020.js",
+    "url": "assets/esm-CYuwENAy.js",
     "revision": null
   }, {
     "url": "assets/aistudio/Screenshot_20261110-230024_Flipkart_d7063a61.png",

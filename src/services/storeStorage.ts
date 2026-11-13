@@ -667,7 +667,14 @@ export function initFirestoreSync() {
         }
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'reviews');
+        if (
+          error?.code === 'permission-denied' ||
+          error?.message?.includes('Missing or insufficient permissions')
+        ) {
+          handleFirestoreError(error, OperationType.GET, 'reviews');
+        } else {
+          console.warn('Firestore reviews onSnapshot warning:', error.message);
+        }
       }
     );
   } catch (err) {

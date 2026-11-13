@@ -64,14 +64,14 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   const initialUrl =
     settings.appPublicUrl && !isObsoleteApkUrl(settings.appPublicUrl)
       ? settings.appPublicUrl
-      : VERIFIED_GOOGLE_DRIVE_URL;
+      : PERMANENT_GITHUB_APK_URL;
 
-  const [customUrl, setCustomUrl] = useState<string>(
-    settings.appPublicUrl && !isObsoleteApkUrl(settings.appPublicUrl)
-      ? settings.appPublicUrl
-      : VERIFIED_GOOGLE_DRIVE_URL
+  const [customUrl, setCustomUrl] = useState<string>(initialUrl);
+  const [activeUrlMode, setActiveUrlMode] = useState<'official' | 'custom'>(
+    initialUrl === PERMANENT_GITHUB_APK_URL || initialUrl === VERIFIED_GOOGLE_DRIVE_URL
+      ? 'official'
+      : 'custom'
   );
-  const [activeUrlMode, setActiveUrlMode] = useState<'official' | 'custom'>('official');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -103,22 +103,25 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   // Sync with settings whenever modal opens or settings update
   useEffect(() => {
     if (isOpen) {
+      const saved = settings.appPublicUrl;
       if (
-        settings.appPublicUrl &&
-        !isObsoleteApkUrl(settings.appPublicUrl) &&
-        settings.appPublicUrl !== VERIFIED_GOOGLE_DRIVE_URL
+        saved &&
+        !isObsoleteApkUrl(saved) &&
+        saved !== PERMANENT_GITHUB_APK_URL &&
+        saved !== VERIFIED_GOOGLE_DRIVE_URL
       ) {
-        setCustomUrl(settings.appPublicUrl);
-        // User had previously saved a real custom domain/shortlink
+        setCustomUrl(saved);
         setActiveUrlMode('custom');
-      } else {
+      } else if (saved === VERIFIED_GOOGLE_DRIVE_URL) {
         setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
         setActiveUrlMode('official');
-        // Automatically save verified new URL to settings
-        if (!settings.appPublicUrl || isObsoleteApkUrl(settings.appPublicUrl)) {
+      } else {
+        setCustomUrl(PERMANENT_GITHUB_APK_URL);
+        setActiveUrlMode('official');
+        if (!saved || isObsoleteApkUrl(saved)) {
           const updated: StoreSettings = {
             ...settings,
-            appPublicUrl: VERIFIED_GOOGLE_DRIVE_URL,
+            appPublicUrl: PERMANENT_GITHUB_APK_URL,
           };
           StoreService.saveSettings(updated);
           if (onSaveSettings) {
@@ -130,7 +133,7 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   }, [isOpen, settings.appPublicUrl]);
 
   // Determine the active link to encode inside the Barcode
-  let activeDownloadUrl = VERIFIED_GOOGLE_DRIVE_URL;
+  let activeDownloadUrl = PERMANENT_GITHUB_APK_URL;
   if (
     activeUrlMode === 'custom' &&
     customUrl.trim() &&
@@ -138,8 +141,10 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
     customUrl.trim().startsWith('http')
   ) {
     activeDownloadUrl = customUrl.trim();
-  } else {
+  } else if (customUrl === VERIFIED_GOOGLE_DRIVE_URL) {
     activeDownloadUrl = VERIFIED_GOOGLE_DRIVE_URL;
+  } else {
+    activeDownloadUrl = PERMANENT_GITHUB_APK_URL;
   }
 
   useEffect(() => {
@@ -162,7 +167,7 @@ export const PosterQrModal: React.FC<PosterQrModalProps> = ({
   if (!isOpen) return null;
 
   const handleSaveCustomUrl = () => {
-    const target = activeUrlMode === 'custom' ? customUrl.trim() : VERIFIED_GOOGLE_DRIVE_URL;
+    const target = activeUrlMode === 'custom' ? customUrl.trim() : PERMANENT_GITHUB_APK_URL;
     const updated: StoreSettings = {
       ...settings,
       appPublicUrl: target,
@@ -708,11 +713,11 @@ function triggerBlobDownload(dataUrl: string, filename: string) {
                   <button
                     type="button"
                     onClick={() => {
-                      setCustomUrl(VERIFIED_GOOGLE_DRIVE_URL);
+                      setCustomUrl(PERMANENT_GITHUB_APK_URL);
                       setActiveUrlMode('official');
                       const updated: StoreSettings = {
                         ...settings,
-                        appPublicUrl: VERIFIED_GOOGLE_DRIVE_URL,
+                        appPublicUrl: PERMANENT_GITHUB_APK_URL,
                       };
                       StoreService.saveSettings(updated);
                       if (onSaveSettings) onSaveSettings(updated);
@@ -721,7 +726,7 @@ function triggerBlobDownload(dataUrl: string, filename: string) {
                     }}
                     className="px-2 py-0.5 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40 cursor-pointer"
                   >
-                    ⚡ Use Official APK Link
+                    ⚡ Use Official GitHub Auto-Update Link
                   </button>
                   <button
                     type="button"
@@ -762,9 +767,9 @@ function triggerBlobDownload(dataUrl: string, filename: string) {
             <div className="text-xs">
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-slate-400 block text-[10px]">QR Code Me Encoded Link:</span>
-                {activeDownloadUrl === VERIFIED_GOOGLE_DRIVE_URL && (
+                {activeDownloadUrl === PERMANENT_GITHUB_APK_URL && (
                   <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
-                    ✓ New Official APK Active
+                    ✓ Permanent Auto-Update APK Active
                   </span>
                 )}
               </div>
